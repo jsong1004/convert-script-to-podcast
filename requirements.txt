@@ -1,0 +1,5 @@
+Flask
+murf
+pydub
+python-dotenv
+requests
