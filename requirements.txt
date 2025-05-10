@@ -1,5 +1,8 @@
-Flask
-murf
-pydub
-python-dotenv
-requests
+Flask>=2.0.0
+python-dotenv>=0.19.0
+murf>=0.1.0
+pydub>=0.25.1
+requests>=2.26.0
+google-generativeai>=0.3.0
+python-pptx>=0.6.21
+PyPDF2>=3.0.0

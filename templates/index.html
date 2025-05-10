@@ -3,162 +3,66 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Convert Audio Script to a Podcast</title>
+    <title>AI Voice Tools Hub</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
-            padding: 0;
+            padding: 20px;
             background-color: #f0f2f5;
             color: #333;
             display: flex;
+            flex-direction: column;
             justify-content: center;
-            align-items: flex-start; /* Align to top for longer content */
+            align-items: center;
             min-height: 100vh;
-            padding-top: 20px; /* Add some padding at the top */
-            padding-bottom: 20px; /* Add some padding at the bottom */
+            text-align: center;
         }
         .container {
             background-color: #ffffff;
-            padding: 30px 40px;
+            padding: 40px;
             border-radius: 12px;
             box-shadow: 0 8px 25px rgba(0,0,0,0.1);
             width: 100%;
-            max-width: 700px;
-            text-align: center;
+            max-width: 600px;
         }
         h1 {
-            color: #1a73e8; /* A nice blue */
-            margin-bottom: 15px;
-            font-size: 2.2em;
+            color: #1a73e8;
+            margin-bottom: 20px;
+            font-size: 2.5em;
         }
         .description {
-            font-size: 1.1em;
+            font-size: 1.2em;
             color: #5f6368;
-            margin-bottom: 30px;
+            margin-bottom: 40px;
             line-height: 1.6;
         }
-        textarea, input[type="file"] {
-            width: calc(100% - 22px); /* Full width minus padding */
-            min-height: 150px;
-            margin-bottom: 20px;
-            padding: 10px;
-            border: 1px solid #dadce0;
-            border-radius: 8px;
-            font-size: 1em;
-            resize: vertical;
-        }
-        input[type="file"] {
-            min-height: auto; /* Override for file input */
-            padding: 12px;
-            background-color: #f8f9fa;
-        }
-        input[type="submit"] {
+        .nav-links a {
+            display: block;
             background-color: #1a73e8;
             color: white;
-            padding: 12px 25px;
-            border: none;
+            padding: 15px 20px;
+            margin: 15px 0;
             border-radius: 8px;
-            cursor: pointer;
-            font-size: 1.1em;
+            text-decoration: none;
+            font-size: 1.2em;
             transition: background-color 0.3s ease;
         }
-        input[type="submit"]:hover {
-            background-color: #1558b3; /* Darker blue on hover */
-        }
-        .message {
-            padding: 12px;
-            margin-bottom: 20px;
-            border-radius: 8px;
-            font-size: 1em;
-        }
-        .error {
-            color: #d93025; /* Google's red */
-            background-color: #fce8e6;
-            border: 1px solid #fcc6c0;
-        }
-        .success {
-            color: #1e8e3e; /* Google's green */
-            background-color: #e6f4ea;
-            border: 1px solid #c4e8d8;
-        }
-        .download-link, .audio-player {
-            display: block;
-            margin-top: 25px;
-            font-size: 1.1em;
-        }
-        .download-link a {
-            color: #1a73e8;
-            text-decoration: none;
-            font-weight: bold;
-        }
-        .download-link a:hover {
-            text-decoration: underline;
-        }
-        audio {
-            width: 100%;
-            margin-top: 10px;
-            border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-        }
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #3c4043;
-            text-align: left;
-        }
-        .form-group {
-            margin-bottom: 20px;
-        }
-        .or-separator {
-            margin: 20px 0;
-            font-weight: bold;
-            color: #5f6368;
+        .nav-links a:hover {
+            background-color: #1558b3;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Convert Audio Script to a Podcast</h1>
+        <h1>AI Voice & Script Tools</h1>
         <p class="description">
-            The "Convert Audio Script to a Podcast" application transforms written dialogue scripts into professional-sounding podcasts. Users can input scripts with multiple characters and a host, each with distinct voices. The app leverages Murf AI's text-to-speech technology to generate natural-sounding conversation, making it easy for content creators, educators, and storytellers to produce engaging audio content without the need for recording equipment or voice actors.
+            Welcome! Choose a tool to get started.
         </p>
-
-        {% if error %}
-            <p class="message error">{{ error }}</p>
-        {% endif %}
-        
-        {% if audio_file_url %}
-            <div class="message success">
-                <p>Audio generated successfully!</p>
-                
-                <div class="audio-player">
-                    <p>Listen to your podcast:</p>
-                    <audio controls src="{{ audio_file_url }}">
-                        Your browser does not support the audio element.
-                    </audio>
-                </div>
-            </div>
-        {% endif %}
-
-        <form method="POST" enctype="multipart/form-data">
-            <div class="form-group">
-                <label for="script">Enter your audio script:</label>
-                <textarea name="script" id="script" placeholder="HOST: Hello world!&#10;Voice 1: This is a test.">{{ script_text if script_text else '' }}</textarea>
-            </div>
-            
-            <div class="or-separator">OR</div>
-
-            <div class="form-group">
-                <label for="script_file">Upload a script file (e.g., .txt):</label>
-                <input type="file" name="script_file" id="script_file" accept=".txt,.md,.rtf">
-            </div>
-            
-            <div class="form-group">
-                <input type="submit" value="Generate Podcast">
-            </div>
-        </form>
+        <div class="nav-links">
+            <a href="{{ url_for('presentation_bp.convert_presentation_to_script') }}">Convert Presentation to Script</a>
+            <a href="{{ url_for('podcast_bp.convert_script_to_podcast') }}">Convert Script to Podcast</a>
+        </div>
     </div>
 </body>
 </html>
