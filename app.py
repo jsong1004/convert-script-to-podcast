@@ -224,8 +224,12 @@ def get_voice_config(speaker_name):
 
 # --- End of helper functions ---
 
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/', methods=['GET'])
 def index():
+    return render_template('index.html')
+
+@app.route('/convert_podcast', methods=['GET', 'POST'])
+def convert_podcast():
     if request.method == 'POST':
         script_text_from_area = request.form.get('script')
         script_file = request.files.get('script_file')
@@ -233,31 +237,30 @@ def index():
 
         if script_file and script_file.filename != '':
             try:
-                # Ensure it's a text-based file, very basic check
                 if script_file.content_type.startswith('text/'):
                     final_script_text = script_file.read().decode('utf-8')
                     app.logger.info(f"Successfully read script from uploaded file: {script_file.filename}")
                 else:
-                    return render_template('index.html', error="Invalid file type. Please upload a text file (e.g., .txt, .md).", script_text=script_text_from_area)
+                    return render_template('convert_podcast.html', error="Invalid file type. Please upload a text file (e.g., .txt, .md).", script_text=script_text_from_area)
             except Exception as e:
                 app.logger.error(f"Error reading uploaded file: {e}")
-                return render_template('index.html', error=f"Error reading uploaded file: {str(e)}", script_text=script_text_from_area)
+                return render_template('convert_podcast.html', error=f"Error reading uploaded file: {str(e)}", script_text=script_text_from_area)
         elif script_text_from_area:
             final_script_text = script_text_from_area
         else:
-            return render_template('index.html', error="Script text or a script file is required.")
+            return render_template('convert_podcast.html', error="Script text or a script file is required.")
 
         if not final_script_text.strip():
-             return render_template('index.html', error="Script content is empty.", script_text=script_text_from_area)
+             return render_template('convert_podcast.html', error="Script content is empty.", script_text=script_text_from_area)
 
         if not MURFA_API_KEY:
-            return render_template('index.html', error="Murf AI API Key is not configured. Please contact the administrator.", script_text=final_script_text)
+            return render_template('convert_podcast.html', error="Murf AI API Key is not configured. Please contact the administrator.", script_text=final_script_text)
 
         try:
             app.logger.info("Starting audio generation process.")
             parsed_script = parse_script(final_script_text)
             if not parsed_script:
-                return render_template('index.html', error="Could not parse the script. Ensure it follows 'SPEAKER: Text' format or the file content is valid.", script_text=final_script_text)
+                return render_template('convert_podcast.html', error="Could not parse the script. Ensure it follows 'SPEAKER: Text' format or the file content is valid.", script_text=final_script_text)
 
             audio_segments = []
             murf_client = Murf(api_key=MURFA_API_KEY)
@@ -282,18 +285,17 @@ def index():
                 audio_download_response.raise_for_status() # Ensure the request was successful
                 
                 # Load audio data into Pydub from bytes.
-                # The log indicates the URL points to a .wav file.
                 file_extension = audio_url.split('?')[0].split('.')[-1].lower()
-                if file_extension not in ['mp3', 'wav', 'ogg', 'flv', 'aac']: # Add other formats if Murf returns them
+                if file_extension not in ['mp3', 'wav', 'ogg', 'flv', 'aac']:
                     app.logger.warning(f"Unexpected audio file extension '{file_extension}' from Murf, attempting to load as wav.")
-                    file_extension = "wav" # Default to wav if unsure, or handle error
+                    file_extension = "wav"
 
                 segment_audio = AudioSegment.from_file(io.BytesIO(audio_download_response.content), format=file_extension)
                 audio_segments.append(segment_audio)
                 app.logger.info(f"Segment {i+1} processed and added from URL.")
 
             if not audio_segments:
-                return render_template('index.html', error="No audio segments were generated. Check script and API logs.", script_text=script_text)
+                return render_template('convert_podcast.html', error="No audio segments were generated. Check script and API logs.", script_text=final_script_text)
 
             # Combine audio segments
             app.logger.info("Combining audio segments...")
@@ -310,32 +312,30 @@ def index():
 
             gcs_blob_name = f"audio/{unique_filename}"
             gcs_url = upload_to_gcs(output_path, gcs_blob_name)
-            # Optionally, remove the local file after upload
             if os.path.exists(output_path):
                 os.remove(output_path)
 
             app.logger.info("Audio generation successful.")
-            return render_template('index.html', audio_file_url=gcs_url, script_text=final_script_text)
+            return render_template('convert_podcast.html', audio_file_url=gcs_url, script_text=final_script_text)
 
         except requests.exceptions.HTTPError as http_err:
             app.logger.error(f"HTTP error during Murf API audio download: {http_err}")
             app.logger.error(f"Response content: {http_err.response.content if http_err.response else 'No response content'}")
-            return render_template('index.html', error=f"An HTTP error occurred while downloading audio from Murf: {http_err}", script_text=final_script_text)
-        except Murf.ApiError as murf_api_err: # Specifically catch Murf API errors
+            return render_template('convert_podcast.html', error=f"An HTTP error occurred while downloading audio from Murf: {http_err}", script_text=final_script_text)
+        except Murf.ApiError as murf_api_err:
             app.logger.error(f"Murf API Error: Status {murf_api_err.status_code}, Body: {murf_api_err.body}", exc_info=True)
             error_message = f"Murf API Error (Status {murf_api_err.status_code}). "
             if murf_api_err.status_code == 502:
                 error_message += "This might be a temporary issue with the Murf AI service (Bad Gateway). Please try again shortly or check the voice ID and text segment."
             else:
                 error_message += "Please check your script, API key, and Murf AI account status."
-            return render_template('index.html', error=error_message, script_text=final_script_text)
+            return render_template('convert_podcast.html', error=error_message, script_text=final_script_text)
         except Exception as e:
             app.logger.error(f"Error during audio generation: {e}", exc_info=True)
-            return render_template('index.html', error=f"An unexpected error occurred: {str(e)}", script_text=final_script_text)
+            return render_template('convert_podcast.html', error=f"An unexpected error occurred: {str(e)}", script_text=final_script_text)
 
-    return render_template('index.html')
+    return render_template('convert_podcast.html')
 
-# --- New Route for Presentation Converter ---
 @app.route('/convert_presentation', methods=['GET', 'POST'])
 def convert_presentation():
     if request.method == 'POST':
@@ -381,7 +381,6 @@ def convert_presentation():
             return render_template('convert_presentation.html', error=f"An unexpected error occurred: {str(e)}")
 
     return render_template('convert_presentation.html')
-# --- End of New Route ---
 
 @app.route('/convert_to_blog', methods=['GET', 'POST'])
 def convert_to_blog():
