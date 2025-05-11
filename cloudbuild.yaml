@@ -33,4 +33,7 @@ steps:
   - 'FLASK_ENV=production'
 
 images:
-- 'gcr.io/myresume-457817/voice-app' 
+- 'gcr.io/myresume-457817/voice-app'
+
+options:
+  logging: CLOUD_LOGGING_ONLY 
