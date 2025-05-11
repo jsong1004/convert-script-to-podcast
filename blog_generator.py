@@ -2,6 +2,7 @@ import google.generativeai as genai
 from typing import Dict, Optional
 import os
 from datetime import datetime
+from google.cloud import storage
 
 class BlogGenerator:
     def __init__(self, api_key: Optional[str] = None, model_name: Optional[str] = None):
@@ -121,4 +122,14 @@ class BlogGenerator:
         </body>
         </html>
         """
-        return html_template 
+        return html_template
+
+GCS_BUCKET_NAME = 'startup_consulting'
+
+def upload_to_gcs(local_file_path, destination_blob_name):
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(GCS_BUCKET_NAME)
+    blob = bucket.blob(destination_blob_name)
+    blob.upload_from_filename(local_file_path)
+    return blob.public_url
+# Use upload_to_gcs after saving blog HTML files, and return the GCS URL for download or sharing. 

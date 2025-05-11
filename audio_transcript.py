@@ -4,6 +4,9 @@ from pydub import AudioSegment
 import tempfile
 import time
 from requests.exceptions import RequestException
+from google.cloud import storage
+
+GCS_BUCKET_NAME = 'startup_consulting'
 
 def preprocess_audio(audio_file_path):
     """Preprocess audio file to ensure compatibility with speech recognition."""
@@ -128,4 +131,12 @@ def get_supported_languages():
         'ja-JP': 'Japanese',
         'ko-KR': 'Korean',
         'zh-CN': 'Chinese (Simplified)'
-    } 
+    }
+
+def upload_to_gcs(local_file_path, destination_blob_name):
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(GCS_BUCKET_NAME)
+    blob = bucket.blob(destination_blob_name)
+    blob.upload_from_filename(local_file_path)
+    return blob.public_url
+# If you want to allow download of processed audio, use upload_to_gcs after exporting or saving any audio file. 

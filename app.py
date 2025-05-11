@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, request, send_from_directory, jsonify, url_for
+from flask import Flask, render_template, request, send_from_directory, jsonify, url_for, redirect
 from dotenv import load_dotenv
 from murf import Murf
 from pydub import AudioSegment
@@ -13,6 +13,7 @@ import PyPDF2 # For reading PDF files
 from blog_generator import BlogGenerator
 from youtube_transcript import extract_video_id, get_transcript, summarize_with_gemini
 from audio_transcript import extract_transcript, get_supported_languages
+from google.cloud import storage
 
 # Import Blueprints
 from presentation_converter import presentation_bp
@@ -48,6 +49,21 @@ else:
     except Exception as e:
         print(f"Failed to configure Google Gemini API: {e}")
 
+GCS_BUCKET_NAME = 'startup_consulting'
+
+def upload_to_gcs(local_file_path, destination_blob_name):
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(GCS_BUCKET_NAME)
+    blob = bucket.blob(destination_blob_name)
+    blob.upload_from_filename(local_file_path)
+    return blob.public_url
+
+def generate_gcs_signed_url(blob_name, expiration=3600):
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(GCS_BUCKET_NAME)
+    blob = bucket.blob(blob_name)
+    url = blob.generate_signed_url(expiration=expiration)
+    return url
 
 # --- Helper functions for Presentation Converter ---
 def extract_text_from_pptx(pptx_file_stream):
@@ -292,8 +308,14 @@ def index():
             app.logger.info(f"Exporting combined audio to {output_path}")
             combined_audio.export(output_path, format="mp3")
 
+            gcs_blob_name = f"audio/{unique_filename}"
+            gcs_url = upload_to_gcs(output_path, gcs_blob_name)
+            # Optionally, remove the local file after upload
+            if os.path.exists(output_path):
+                os.remove(output_path)
+
             app.logger.info("Audio generation successful.")
-            return render_template('index.html', audio_file_url=f"/download/{unique_filename}", script_text=final_script_text)
+            return render_template('index.html', audio_file_url=gcs_url, script_text=final_script_text)
 
         except requests.exceptions.HTTPError as http_err:
             app.logger.error(f"HTTP error during Murf API audio download: {http_err}")
@@ -392,9 +414,11 @@ def convert_to_blog():
             blog_path = os.path.join('output_blog', blog_filename)
             with open(blog_path, 'w', encoding='utf-8') as f:
                 f.write(blog_generator.format_html(blog_data))
-            return render_template('convert_to_blog.html', 
-                                 generated_blog=blog_data['content'],
-                                 script_text=final_script_text)
+            gcs_blog_blob = f"blog/{blog_filename}"
+            gcs_blog_url = upload_to_gcs(blog_path, gcs_blog_blob)
+            if os.path.exists(blog_path):
+                os.remove(blog_path)
+            return render_template('convert_to_blog.html', generated_blog=blog_data['content'], script_text=final_script_text, blog_file_url=gcs_blog_url)
         except Exception as e:
             app.logger.error(f"Error generating blog post: {e}")
             return render_template('convert_to_blog.html', 
@@ -405,21 +429,28 @@ def convert_to_blog():
 @app.route('/download_blog')
 def download_blog():
     try:
-        # Get the most recently generated blog post
-        blog_files = [f for f in os.listdir('output_blog') if f.endswith('.html')]
-        if not blog_files:
+        # Get the most recently generated blog post in GCS
+        storage_client = storage.Client()
+        bucket = storage_client.bucket(GCS_BUCKET_NAME)
+        blobs = list(bucket.list_blobs(prefix='blog/'))
+        if not blobs:
             return "No blog posts available for download.", 404
-            
-        latest_blog = max(blog_files, key=lambda x: os.path.getctime(os.path.join('output_blog', x)))
-        return send_from_directory('output_blog', latest_blog, as_attachment=True)
-        
+        latest_blob = max(blobs, key=lambda b: b.time_created)
+        signed_url = generate_gcs_signed_url(latest_blob.name)
+        return redirect(signed_url)
     except Exception as e:
         app.logger.error(f"Error downloading blog post: {e}")
         return str(e), 500
 
 @app.route('/download/<filename>')
 def download_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename, as_attachment=True)
+    try:
+        blob_name = f"audio/{filename}"
+        signed_url = generate_gcs_signed_url(blob_name)
+        return redirect(signed_url)
+    except Exception as e:
+        app.logger.error(f"Error generating signed URL for audio: {e}")
+        return str(e), 500
 
 @app.route('/youtube_transcript', methods=['GET', 'POST'])
 def youtube_transcript():

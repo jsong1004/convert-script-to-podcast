@@ -126,7 +126,7 @@ gcloud builds submit --config cloudbuild.yaml
 4. Set up environment variables in Cloud Run:
 ```bash
 gcloud run services update voice-app \
-  --update-env-vars MURFA_API_KEY=your_murf_api_key,GOOGLE_API_KEY=your_google_api_key
+  --update-env-vars MURFA_API_KEY=your_murf_api_key,GOOGLE_API_KEY=your_google_gemini_api_key,GOOGLE_MODEL=your_google_gemini_model_key
 ```
 
 5. Monitor the deployment:
@@ -210,3 +210,41 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## Support
 
 For support, please open an issue in the GitHub repository or contact the maintainers.
+
+## Additional Changes
+
+### Upload to Google Cloud Storage
+
+To upload generated files to Google Cloud Storage, you'll need to install the Google Cloud Storage client:
+```bash
+pip install google-cloud-storage
+```
+
+**Sample code to upload a file:**
+```python
+from google.cloud import storage
+
+def upload_to_gcs(local_file_path, bucket_name, destination_blob_name):
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(bucket_name)
+    blob = bucket.blob(destination_blob_name)
+    blob.upload_from_filename(local_file_path)
+    # Optionally, make it public:
+    # blob.make_public()
+    return blob.public_url  # or use blob.generate_signed_url() for private files
+```
+
+**In your Flask route, after generating the audio:**
+```python
+gcs_url = upload_to_gcs(output_path, 'your-bucket-name', unique_filename)
+# Then provide gcs_url to the user for download
+```
+
+---
+
+#### Next Steps
+
+- Would you like step-by-step help updating your Flask app to use Google Cloud Storage for audio files?
+- If so, please provide your bucket name (or let me know if you need help creating one), and I can generate the code changes for you!
+
+Let me know how you'd like to proceed!

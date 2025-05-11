@@ -5,11 +5,14 @@ import io
 from flask import Blueprint, render_template, request, current_app, url_for
 from murf import Murf
 from pydub import AudioSegment
+from google.cloud import storage
 
 # Ensure MURFA_API_KEY is loaded
 MURFA_API_KEY = os.getenv("MURFA_API_KEY")
 
 podcast_bp = Blueprint('podcast_bp', __name__, template_folder='../templates')
+
+GCS_BUCKET_NAME = 'startup_consulting'
 
 def parse_script(script_text):
     lines = script_text.strip().split('\n')
@@ -37,6 +40,13 @@ def get_voice_config(speaker_name):
     else:
         current_app.logger.warning(f"Speaker '{speaker_name}' not recognized, using default voice.")
         return "en-US-natalie"
+
+def upload_to_gcs(local_file_path, destination_blob_name):
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(GCS_BUCKET_NAME)
+    blob = bucket.blob(destination_blob_name)
+    blob.upload_from_filename(local_file_path)
+    return blob.public_url
 
 @podcast_bp.route('/convert_script_to_podcast', methods=['GET', 'POST'])
 def convert_script_to_podcast():
@@ -113,7 +123,11 @@ def convert_script_to_podcast():
 
             # Use url_for with the main app's download_file endpoint
             audio_file_url = url_for('download_file', filename=unique_filename, _external=False) # Use relative path for template
-            return render_template('convert_podcast.html', audio_file_url=audio_file_url, script_text=final_script_text)
+
+            # Upload to GCS
+            gcs_url = upload_to_gcs(output_path, unique_filename)
+
+            return render_template('convert_podcast.html', audio_file_url=gcs_url, script_text=final_script_text)
 
         except requests.exceptions.HTTPError as http_err:
             current_app.logger.error(f"HTTP error during Murf API audio download: {http_err}")
