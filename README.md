@@ -53,6 +53,7 @@ A Flask-based web application that provides AI-powered tools for converting cont
 - Python 3.8 or higher
 - Murf AI API key
 - Google Gemini API key
+- Google Cloud Platform account (for deployment)
 
 ## Installation
 
@@ -95,6 +96,61 @@ python app.py
    - **YouTube Transcript**: Enter a YouTube URL to extract and summarize the transcript
    - **Audio Transcript**: Upload an audio file to extract the transcript
 
+## Deployment
+
+### Google Cloud Run Deployment
+
+1. Install and initialize the Google Cloud SDK:
+```bash
+# Install Google Cloud SDK
+# Follow instructions at: https://cloud.google.com/sdk/docs/install
+
+# Initialize gcloud
+gcloud init
+```
+
+2. Enable required APIs:
+```bash
+gcloud services enable \
+  cloudbuild.googleapis.com \
+  run.googleapis.com \
+  containerregistry.googleapis.com
+```
+
+3. Set up Cloud Build:
+```bash
+# Create a Cloud Build trigger
+gcloud builds submit --config cloudbuild.yaml
+```
+
+4. Set up environment variables in Cloud Run:
+```bash
+gcloud run services update voice-app \
+  --update-env-vars MURFA_API_KEY=your_murf_api_key,GOOGLE_API_KEY=your_google_api_key
+```
+
+5. Monitor the deployment:
+```bash
+gcloud builds list
+```
+
+The application will be available at: `https://voice-app-xxxxx-uc.a.run.app`
+
+### Local Docker Deployment
+
+1. Build the Docker image:
+```bash
+docker build -t voice-app .
+```
+
+2. Run the container:
+```bash
+docker run -p 8080:8080 \
+  -e MURFA_API_KEY=your_murf_api_key \
+  -e GOOGLE_API_KEY=your_google_api_key \
+  voice-app
+```
+
 ## Project Structure
 
 ```
@@ -106,6 +162,9 @@ voice/
 ├── youtube_transcript.py # YouTube transcript module
 ├── audio_transcript.py  # Audio transcript module
 ├── requirements.txt    # Project dependencies
+├── Dockerfile         # Docker configuration
+├── cloudbuild.yaml    # Cloud Build configuration
+├── .dockerignore     # Docker ignore file
 ├── templates/         # HTML templates
 │   ├── base.html
 │   ├── index.html
