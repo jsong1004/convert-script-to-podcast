@@ -10,6 +10,7 @@ import logging
 import google.generativeai as genai # For Google Gemini
 from pptx import Presentation # For reading .pptx files
 import PyPDF2 # For reading PDF files
+from blog_generator import BlogGenerator
 
 # Import Blueprints
 from presentation_converter import presentation_bp
@@ -358,6 +359,61 @@ def convert_presentation():
     return render_template('convert_presentation.html')
 # --- End of New Route ---
 
+@app.route('/convert_to_blog', methods=['GET', 'POST'])
+def convert_to_blog():
+    if request.method == 'POST':
+        script_text = request.form.get('script')
+        script_file = request.files.get('script_file')
+        blog_style = request.form.get('blog_style', 'informative')
+        final_script_text = script_text or ''
+
+        if script_file and script_file.filename != '':
+            try:
+                if script_file.content_type.startswith('text/') or script_file.filename.endswith(('.txt', '.md')):
+                    final_script_text = script_file.read().decode('utf-8')
+                else:
+                    return render_template('convert_to_blog.html', error="Invalid file type. Please upload a text file (e.g., .txt, .md).", script_text=script_text)
+            except Exception as e:
+                app.logger.error(f"Error reading uploaded file: {e}")
+                return render_template('convert_to_blog.html', error=f"Error reading uploaded file: {str(e)}", script_text=script_text)
+
+        if not final_script_text.strip():
+            return render_template('convert_to_blog.html', error="Script text or a script file is required.", script_text=script_text)
+        if not GOOGLE_API_KEY:
+            return render_template('convert_to_blog.html', error="Google API Key is not configured.", script_text=final_script_text)
+        try:
+            blog_generator = BlogGenerator(GOOGLE_API_KEY)
+            blog_data = blog_generator.generate_blog_post(final_script_text, blog_style)
+            if not os.path.exists('output_blog'):
+                os.makedirs('output_blog')
+            blog_filename = f"blog_{uuid.uuid4()}.html"
+            blog_path = os.path.join('output_blog', blog_filename)
+            with open(blog_path, 'w', encoding='utf-8') as f:
+                f.write(blog_generator.format_html(blog_data))
+            return render_template('convert_to_blog.html', 
+                                 generated_blog=blog_data['content'],
+                                 script_text=final_script_text)
+        except Exception as e:
+            app.logger.error(f"Error generating blog post: {e}")
+            return render_template('convert_to_blog.html', 
+                                 error=f"Error generating blog post: {str(e)}",
+                                 script_text=final_script_text)
+    return render_template('convert_to_blog.html')
+
+@app.route('/download_blog')
+def download_blog():
+    try:
+        # Get the most recently generated blog post
+        blog_files = [f for f in os.listdir('output_blog') if f.endswith('.html')]
+        if not blog_files:
+            return "No blog posts available for download.", 404
+            
+        latest_blog = max(blog_files, key=lambda x: os.path.getctime(os.path.join('output_blog', x)))
+        return send_from_directory('output_blog', latest_blog, as_attachment=True)
+        
+    except Exception as e:
+        app.logger.error(f"Error downloading blog post: {e}")
+        return str(e), 500
 
 @app.route('/download/<filename>')
 def download_file(filename):

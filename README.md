@@ -1,116 +1,117 @@
-# AI Voice Tools Hub
+# AI Voice & Script Tools
 
-A Flask web application that provides multiple tools for voice and presentation content creation:
-1. Convert written dialogue scripts into professional podcasts using Murf AI
-2. Transform PowerPoint presentations into engaging scripts
-3. Convert PDF documents into podcast-ready scripts
+A Flask-based web application that provides AI-powered tools for converting content between different formats. The application uses Murf AI for voice synthesis and Google Gemini for content generation.
 
-## Description
+## Features
 
-The AI Voice Tools Hub is a comprehensive suite of tools for content creators, educators, and storytellers to produce engaging audio content without the need for recording equipment or voice actors. The application offers multiple features:
+### 1. Presentation to Script Converter
+- Convert PowerPoint presentations (PPTX) and PDFs into engaging scripts
+- Multiple script styles available (podcast, speech)
+- Maintains presentation flow and structure
+- Uses Google Gemini AI for natural script generation
 
-- **Script to Podcast**: Transform written dialogue scripts with multiple speakers into professional-sounding podcasts
-- **Presentation to Script**: Convert PowerPoint presentations into engaging, spoken-word scripts
-- **PDF to Script**: Transform PDF documents into podcast-ready scripts
-- **AI-Powered Script Generation**: Uses Google's Gemini AI to create natural, engaging scripts from presentation content
-- **Multiple Voice Support**: Automatically assigns different voices to different characters
-- **Professional Text-to-Speech**: Uses Murf AI's high-quality voice synthesis
-- **Easy Download**: Get your podcast as a downloadable audio file
-- **User-Friendly Interface**: Simple web interface with minimal learning curve
+### 2. Script to Podcast Generator
+- Transform scripts into professional podcasts
+- Multiple voice options using Murf AI
+- High-quality audio output
+- Support for multiple speakers in the script
+- Easy script formatting with speaker labels
+
+### 3. Script to Blog Converter
+- Convert scripts into well-structured blog posts
+- Multiple blog styles (informative, tutorial, case study)
+- SEO-friendly content generation
+- HTML export option
+- Markdown support
+
+## Prerequisites
+
+- Python 3.8 or higher
+- Murf AI API key
+- Google Gemini API key
 
 ## Installation
 
-### Prerequisites
-
-- Python 3.8 or higher
-- pip (Python package installer)
-
-### Setup
-
 1. Clone the repository:
-   ```
-   git clone https://github.com/jsong1004/voice.git
-   cd voice
-   ```
+```bash
+git clone https://github.com/jsong1004/convert-script-to-podcast
+cd voice
+```
 
 2. Create and activate a virtual environment:
-   ```
-   python -m venv venv
-   
-   # On Windows
-   venv\Scripts\activate
-   
-   # On macOS/Linux
-   source venv/bin/activate
-   ```
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
 
 3. Install dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
+```bash
+pip install -r requirements.txt
+```
 
-4. Set up your API keys in a `.env` file:
-   ```
-   MURFA_API_KEY=your_murf_api_key_here
-   GOOGLE_API_KEY=your_google_api_key_here
-   ```
+4. Create a `.env` file in the project root with your API keys:
+```
+MURFA_API_KEY=your_murf_api_key
+GOOGLE_API_KEY=your_google_api_key
+```
 
 ## Usage
 
 1. Start the Flask application:
-   ```
-   python app.py
-   ```
-
-2. Open your web browser and navigate to:
-   ```
-   http://localhost:5000
-   ```
-
-3. Choose your desired tool:
-   - **Script to Podcast**: Enter your script in the provided text area
-   - **Presentation to Script**: Upload a PowerPoint (.pptx) or PDF file
-   - **PDF to Script**: Upload a PDF document
-
-### Script Format Example
-
-```
-HOST: Welcome to Tech Talk, where we discuss the latest in technology trends.
-Voice 1: Thanks for having me on the show, I'm excited to share my insights.
-HOST: Today we're talking about the future of artificial intelligence. What major developments do you see coming?
-Voice 1: I think we'll see more integration of AI into everyday objects, creating truly smart environments.
-Voice 2: I agree, but I also think we'll face new ethical challenges as AI becomes more autonomous.
-HOST: That's a great point about ethics. How should we approach regulation?
-Voice 2: We need a balanced approach that encourages innovation while protecting against potential risks.
+```bash
+python app.py
 ```
 
-### Presentation/PDF Conversion
+2. Open your web browser and navigate to `http://localhost:5000`
 
-When converting presentations or PDFs, you can choose between two script styles:
-- **Podcast Style**: Creates a multi-voice conversation format
-- **Speech Style**: Generates a single-speaker presentation format
+3. Choose the desired tool:
+   - **Presentation to Script**: Upload a PPTX or PDF file and select the script style
+   - **Script to Podcast**: Enter or upload a script and generate audio
+   - **Script to Blog**: Convert your script into a blog post with your preferred style
 
-## Voice Configuration
+## Project Structure
 
-- HOST voice: en-US-ryan (Conversational style)
-- Other voices: Various options from Murf AI's voice library
+```
+voice/
+├── app.py              # Main Flask application
+├── blog_generator.py   # Blog generation module
+├── podcast_generator.py # Podcast generation module
+├── presentation_converter.py # Presentation conversion module
+├── requirements.txt    # Project dependencies
+├── templates/         # HTML templates
+│   ├── base.html
+│   ├── index.html
+│   ├── convert_presentation.html
+│   ├── convert_to_blog.html
+│   └── ...
+├── static/           # Static files (CSS, JS)
+└── output_audio/     # Generated audio files
+```
 
-## API Reference
+## API Integration
 
-This application uses multiple APIs:
-- [Murf AI](https://murf.ai/) for text-to-speech conversion
-- [Google Gemini](https://ai.google.dev/) for AI-powered script generation
+### Murf AI
+- Used for text-to-speech conversion
+- Supports multiple voices and styles
+- Generates high-quality audio output
+
+### Google Gemini
+- Powers content generation for scripts and blog posts
+- Provides natural language processing capabilities
+- Ensures high-quality content output
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
 
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## Acknowledgments
+## Support
 
-- [Murf AI](https://murf.ai/) for their text-to-speech API
-- [Google Gemini](https://ai.google.dev/) for AI-powered script generation
-- [Flask](https://flask.palletsprojects.com/) web framework
+For support, please open an issue in the GitHub repository or contact the maintainers.

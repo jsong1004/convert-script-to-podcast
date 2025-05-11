@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Convert Script to Blog Post{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="mb-4">Convert Script to Blog Post</h1>
+    
+    {% if error %}
+    <div class="alert alert-danger" role="alert">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    <div class="card">
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('convert_to_blog') }}" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label for="script" class="form-label">Enter your script:</label>
+                    <textarea class="form-control" id="script" name="script" rows="10">{{ script_text if script_text else '' }}</textarea>
+                </div>
+                <div class="mb-3">
+                    <label for="script_file" class="form-label">Or upload a script file (.txt, .md):</label>
+                    <input class="form-control" type="file" id="script_file" name="script_file" accept=".txt,.md">
+                </div>
+                <div class="mb-3">
+                    <label for="blog_style" class="form-label">Blog Style:</label>
+                    <select class="form-select" id="blog_style" name="blog_style" required>
+                        <option value="informative">Informative</option>
+                        <option value="tutorial">Tutorial</option>
+                        <option value="case_study">Case Study</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Generate Blog Post</button>
+            </form>
+        </div>
+    </div>
+
+    {% if generated_blog %}
+    <div class="card mt-4">
+        <div class="card-body">
+            <h2 class="card-title">Generated Blog Post</h2>
+            <div class="blog-content" id="blog-content-raw" style="display:none;">{{ generated_blog }}</div>
+            <div class="blog-content" id="blog-content-md"></div>
+            <div class="mt-3">
+                <button class="btn btn-success" onclick="copyToClipboard()">Copy to Clipboard</button>
+                <a href="{{ url_for('download_blog') }}" class="btn btn-primary">Download as HTML</a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Marked.js for Markdown rendering -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+function copyToClipboard() {
+    const blogContent = document.querySelector('#blog-content-md').innerText;
+    navigator.clipboard.writeText(blogContent).then(() => {
+        alert('Blog post copied to clipboard!');
+    }).catch(err => {
+        console.error('Failed to copy text: ', err);
+    });
+}
+
+// Render Markdown if present
+document.addEventListener('DOMContentLoaded', function() {
+    var raw = document.getElementById('blog-content-raw');
+    var md = document.getElementById('blog-content-md');
+    if (raw && md) {
+        md.innerHTML = marked.parse(raw.textContent || raw.innerText);
+    }
+});
+</script>
+{% endblock %} 

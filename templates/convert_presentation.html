@@ -114,6 +114,23 @@
         .nav-link a:hover {
             text-decoration: underline;
         }
+        .download-container {
+            margin-top: 15px;
+            text-align: center;
+        }
+        .download-button {
+            background-color: #34a853;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.3s ease;
+        }
+        .download-button:hover {
+            background-color: #2d9249;
+        }
     </style>
 </head>
 <body>
@@ -158,7 +175,39 @@
             <div class="form-group">
                 <h2>Generated Script:</h2>
                 <textarea id="generated_script" readonly>{{ generated_script }}</textarea>
+                <div class="download-container">
+                    <button id="download-script" class="download-button">Download Script as Text File</button>
+                </div>
             </div>
+            
+            <script>
+                document.getElementById('download-script').addEventListener('click', function() {
+                    // Get the script content
+                    const scriptContent = document.getElementById('generated_script').value;
+                    
+                    // Create a blob with the content
+                    const blob = new Blob([scriptContent], { type: 'text/plain' });
+                    
+                    // Create a temporary URL for the blob
+                    const url = window.URL.createObjectURL(blob);
+                    
+                    // Create a temporary anchor element
+                    const a = document.createElement('a');
+                    a.href = url;
+                    
+                    // Set the filename - use timestamp for uniqueness
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                    a.download = `script_${timestamp}.txt`;
+                    
+                    // Append to the document, click it, and remove it
+                    document.body.appendChild(a);
+                    a.click();
+                    
+                    // Clean up
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                });
+            </script>
         {% endif %}
     </div>
 </body>

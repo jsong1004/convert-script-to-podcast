@@ -1,68 +1,65 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Voice Tools Hub</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f0f2f5;
-            color: #333;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            text-align: center;
-        }
-        .container {
-            background-color: #ffffff;
-            padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-            width: 100%;
-            max-width: 600px;
-        }
-        h1 {
-            color: #1a73e8;
-            margin-bottom: 20px;
-            font-size: 2.5em;
-        }
-        .description {
-            font-size: 1.2em;
-            color: #5f6368;
-            margin-bottom: 40px;
-            line-height: 1.6;
-        }
-        .nav-links a {
-            display: block;
-            background-color: #1a73e8;
-            color: white;
-            padding: 15px 20px;
-            margin: 15px 0;
-            border-radius: 8px;
-            text-decoration: none;
-            font-size: 1.2em;
-            transition: background-color 0.3s ease;
-        }
-        .nav-links a:hover {
-            background-color: #1558b3;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>AI Voice & Script Tools</h1>
-        <p class="description">
-            Welcome! Choose a tool to get started.
-        </p>
-        <div class="nav-links">
-            <a href="{{ url_for('presentation_bp.convert_presentation_to_script') }}">Convert Presentation to Script</a>
-            <a href="{{ url_for('podcast_bp.convert_script_to_podcast') }}">Convert Script to Podcast</a>
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+    <h1 class="text-center mb-5">AI Voice & Script Tools</h1>
+    <p class="description text-center mb-5">
+        Transform your content across different formats using advanced AI technology.
+    </p>
+
+    <div class="row">
+        <!-- Presentation to Script Card -->
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Presentation to Script</h5>
+                    <p class="card-text">
+                        Convert your PowerPoint presentations or PDFs into engaging scripts. Our AI analyzes your slides and creates natural-sounding scripts perfect for podcasts or speeches.
+                    </p>
+                    <ul class="list-unstyled">
+                        <li>✓ Supports PPTX and PDF formats</li>
+                        <li>✓ Multiple script styles available</li>
+                        <li>✓ Maintains presentation flow</li>
+                    </ul>
+                    <a href="{{ url_for('presentation_bp.convert_presentation_to_script') }}" class="btn btn-primary">Get Started</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Script to Podcast Card -->
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Script to Podcast</h5>
+                    <p class="card-text">
+                        Transform your scripts into professional podcasts using Murf AI's advanced voice synthesis. Create engaging audio content with multiple voices and natural intonation.
+                    </p>
+                    <ul class="list-unstyled">
+                        <li>✓ Multiple voice options</li>
+                        <li>✓ High-quality audio output</li>
+                        <li>✓ Easy script formatting</li>
+                    </ul>
+                    <a href="{{ url_for('podcast_bp.convert_script_to_podcast') }}" class="btn btn-primary">Get Started</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Script to Blog Card -->
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Script to Blog</h5>
+                    <p class="card-text">
+                        Convert your scripts into well-structured blog posts. Our AI helps create engaging, readable content with proper formatting and structure.
+                    </p>
+                    <ul class="list-unstyled">
+                        <li>✓ Multiple blog styles</li>
+                        <li>✓ SEO-friendly content</li>
+                        <li>✓ HTML export option</li>
+                    </ul>
+                    <a href="{{ url_for('convert_to_blog') }}" class="btn btn-primary">Get Started</a>
+                </div>
+            </div>
         </div>
     </div>
-</body>
-</html>
+</div>
+{% endblock %}
