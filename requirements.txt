@@ -10,3 +10,4 @@ youtube-transcript-api==1.0.3
 SpeechRecognition==3.10.1
 defusedxml==0.7.1
 gunicorn==21.2.0
+google-cloud-storage==2.16.0
