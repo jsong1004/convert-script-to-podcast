@@ -11,6 +11,8 @@ import google.generativeai as genai # For Google Gemini
 from pptx import Presentation # For reading .pptx files
 import PyPDF2 # For reading PDF files
 from blog_generator import BlogGenerator
+from youtube_transcript import extract_video_id, get_transcript, summarize_with_gemini
+from audio_transcript import extract_transcript, get_supported_languages
 
 # Import Blueprints
 from presentation_converter import presentation_bp
@@ -20,7 +22,7 @@ load_dotenv()
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'output_audio'
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB upload limit
+app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100 MB upload limit
 
 # Register blueprints
 app.register_blueprint(podcast_bp)
@@ -418,6 +420,87 @@ def download_blog():
 @app.route('/download/<filename>')
 def download_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename, as_attachment=True)
+
+@app.route('/youtube_transcript', methods=['GET', 'POST'])
+def youtube_transcript():
+    if request.method == 'POST':
+        youtube_url = request.form.get('youtube_url')
+        language = request.form.get('language', 'en')
+        
+        if not youtube_url:
+            return render_template('youtube_transcript.html', error="Please provide a YouTube URL.")
+        
+        try:
+            video_id = extract_video_id(youtube_url)
+            if not video_id:
+                return render_template('youtube_transcript.html', error="Invalid YouTube URL.")
+            
+            transcript = get_transcript(video_id, language)
+            if not transcript:
+                return render_template('youtube_transcript.html', error="Could not generate transcript.")
+            
+            # Generate summary using Gemini
+            if GOOGLE_API_KEY:
+                try:
+                    summary = summarize_with_gemini(transcript, GOOGLE_API_KEY)
+                except Exception as e:
+                    app.logger.error(f"Error generating summary: {e}")
+                    summary = None
+            else:
+                summary = None
+            
+            return render_template('youtube_transcript.html', 
+                                 transcript=transcript,
+                                 summary=summary)
+            
+        except Exception as e:
+            app.logger.error(f"Error processing YouTube transcript: {e}")
+            return render_template('youtube_transcript.html', error=str(e))
+    
+    return render_template('youtube_transcript.html')
+
+@app.route('/audio_transcript', methods=['GET', 'POST'])
+def audio_transcript():
+    if request.method == 'POST':
+        if 'audio_file' not in request.files:
+            return render_template('audio_transcript.html', 
+                                 error="No audio file provided.",
+                                 languages=get_supported_languages())
+        
+        audio_file = request.files['audio_file']
+        language = request.form.get('language', 'en-US')
+        
+        if audio_file.filename == '':
+            return render_template('audio_transcript.html', 
+                                 error="No audio file selected.",
+                                 languages=get_supported_languages())
+        
+        try:
+            # Save the uploaded file temporarily
+            temp_file = os.path.join(app.config['UPLOAD_FOLDER'], f"temp_{uuid.uuid4().hex}")
+            audio_file.save(temp_file)
+            
+            # Extract transcript
+            transcript = extract_transcript(temp_file, language)
+            
+            # Clean up temporary file
+            if os.path.exists(temp_file):
+                os.unlink(temp_file)
+            
+            return render_template('audio_transcript.html', 
+                                 transcript=transcript,
+                                 languages=get_supported_languages())
+            
+        except Exception as e:
+            app.logger.error(f"Error processing audio file: {e}")
+            # Clean up temporary file if it exists
+            if os.path.exists(temp_file):
+                os.unlink(temp_file)
+            return render_template('audio_transcript.html', 
+                                 error=str(e),
+                                 languages=get_supported_languages())
+    
+    return render_template('audio_transcript.html', languages=get_supported_languages())
 
 if __name__ == '__main__':
     # Basic logging configuration

@@ -24,6 +24,30 @@ A Flask-based web application that provides AI-powered tools for converting cont
 - HTML export option
 - Markdown support
 
+### 4. YouTube Transcript Generator
+- Extract transcripts from YouTube videos
+- Support for multiple languages
+- Automatic language detection and fallback
+- AI-powered summary generation using Google Gemini
+- Clean and readable transcript formatting
+- Support for various YouTube URL formats (standard, shorts, live streams)
+
+### 5. Audio Transcript Generator
+- Converts audio files to text transcripts
+- Supports multiple audio formats:
+  - WAV
+  - MP3
+  - M4A
+  - FLAC
+  - OGG
+- Features:
+  - Multi-language support
+  - Automatic audio preprocessing
+  - Chunk processing for large files
+  - Robust error handling and retry logic
+  - Audio normalization and optimization
+  - Clean temporary file management
+
 ## Prerequisites
 
 - Python 3.8 or higher
@@ -68,6 +92,8 @@ python app.py
    - **Presentation to Script**: Upload a PPTX or PDF file and select the script style
    - **Script to Podcast**: Enter or upload a script and generate audio
    - **Script to Blog**: Convert your script into a blog post with your preferred style
+   - **YouTube Transcript**: Enter a YouTube URL to extract and summarize the transcript
+   - **Audio Transcript**: Upload an audio file to extract the transcript
 
 ## Project Structure
 
@@ -77,13 +103,16 @@ voice/
 ├── blog_generator.py   # Blog generation module
 ├── podcast_generator.py # Podcast generation module
 ├── presentation_converter.py # Presentation conversion module
+├── youtube_transcript.py # YouTube transcript module
+├── audio_transcript.py  # Audio transcript module
 ├── requirements.txt    # Project dependencies
 ├── templates/         # HTML templates
 │   ├── base.html
 │   ├── index.html
 │   ├── convert_presentation.html
 │   ├── convert_to_blog.html
-│   └── ...
+│   ├── youtube_transcript.html
+│   └── audio_transcript.html
 ├── static/           # Static files (CSS, JS)
 └── output_audio/     # Generated audio files
 ```
@@ -99,6 +128,13 @@ voice/
 - Powers content generation for scripts and blog posts
 - Provides natural language processing capabilities
 - Ensures high-quality content output
+- Generates summaries for YouTube transcripts
+
+### YouTube Transcript API
+- Extracts transcripts from YouTube videos
+- Supports multiple languages
+- Handles various YouTube URL formats
+- Provides fallback options for unavailable languages
 
 ## Contributing
 
