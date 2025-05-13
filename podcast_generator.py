@@ -12,7 +12,7 @@ MURFA_API_KEY = os.getenv("MURFA_API_KEY")
 
 podcast_bp = Blueprint('podcast_bp', __name__, template_folder='../templates')
 
-GCS_BUCKET_NAME = 'startup_consulting'
+GCS_BUCKET_NAME = 'startup-consulting'
 
 def parse_script(script_text):
     lines = script_text.strip().split('\n')

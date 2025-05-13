@@ -7,18 +7,19 @@
     </p>
 
     <div class="row">
-        <!-- Presentation to Script Card -->
+        <!-- Text to Audio Script Card -->
         <div class="col-md-4 mb-4">
             <div class="card h-100">
                 <div class="card-body">
-                    <h5 class="card-title">Presentation to Script</h5>
+                    <h5 class="card-title">Text to Audio Script</h5>
                     <p class="card-text">
-                        Convert your PowerPoint presentations or PDFs into engaging scripts. Our AI analyzes your slides and creates natural-sounding scripts perfect for podcasts or speeches.
+                        Convert your PDF, DOCX, TXT, or Markdown files into engaging audio scripts. Choose podcast or presentation style, and generate scripts in English or Korean.
                     </p>
                     <ul class="list-unstyled">
-                        <li>✓ Supports PPTX and PDF formats</li>
-                        <li>✓ Multiple script styles available</li>
-                        <li>✓ Maintains presentation flow</li>
+                        <li>✓ Supports PDF, DOCX, TXT, and MD formats</li>
+                        <li>✓ Podcast or presentation script styles</li>
+                        <li>✓ Output in English or Korean</li>
+                        <li>✓ Maintains content flow and context</li>
                     </ul>
                     <a href="{{ url_for('presentation_bp.convert_presentation_to_script') }}" class="btn btn-primary">Get Started</a>
                 </div>
@@ -67,12 +68,37 @@
                 <div class="card-body">
                     <h5 class="card-title">YouTube Transcript Generator</h5>
                     <p class="card-text">
-                        Extract and summarize transcripts from YouTube videos in multiple languages.
+                        Extract and summarize transcripts from YouTube videos or your own uploaded video files. Supports multiple languages for both transcript and summary, including English and Korean.
                     </p>
+                    <ul class="list-unstyled">
+                        <li>✓ Accepts YouTube URLs or direct video file uploads (MP4, MOV, etc.)</li>
+                        <li>✓ Multi-language transcript and summary (English, Korean, and more)</li>
+                        <li>✓ AI-powered summarization</li>
+                    </ul>
                     <a href="{{ url_for('youtube_transcript') }}" class="btn btn-primary">Get Started</a>
                 </div>
             </div>
         </div>
+
+        <!-- Audio Transcript Card -->
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Audio Transcript</h5>
+                    <p class="card-text">
+                        Convert your audio files (WAV, MP3, M4A, FLAC, OGG) into accurate text transcripts using advanced speech recognition. Supports multiple languages and large files.
+                    </p>
+                    <ul class="list-unstyled">
+                        <li>✓ Multi-language support</li>
+                        <li>✓ Handles large audio files</li>
+                        <li>✓ Fast and accurate transcription</li>
+                    </ul>
+                    <a href="{{ url_for('audio_transcript') }}" class="btn btn-primary">Get Started</a>
+                </div>
+            </div>
+        </div>
+
+
     </div>
 </div>
 {% endblock %}

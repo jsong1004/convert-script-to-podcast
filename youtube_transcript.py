@@ -1,6 +1,12 @@
 import re
 from youtube_transcript_api import YouTubeTranscriptApi
 import google.generativeai as genai
+# Add imports for video/audio processing
+import tempfile
+from moviepy.editor import VideoFileClip
+import speech_recognition as sr
+import os
+from pydub import AudioSegment
 
 def extract_video_id(url):
     """Extract YouTube video ID from URL."""
@@ -74,18 +80,35 @@ def get_transcript(video_id, language="en"):
     except Exception as e:
         raise Exception(f"Error extracting transcript: {str(e)}")
 
-def summarize_with_gemini(transcript, api_key):
-    """Summarize transcript using Google's Gemini model."""
+def summarize_with_gemini(transcript, api_key, preferred_language='en'):
+    """Summarize transcript using Google's Gemini model in the preferred language."""
     try:
         # Configure the Gemini API
         genai.configure(api_key=api_key)
         
+        # Get model name from environment or default
+        model_name = os.getenv('GOOGLE_MODEL', 'gemini-pro')
         # Set up the model
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel(model_name)
+        
+        # Language instruction (use language codes as keys)
+        language_instruction = {
+            'en': 'Generate the summary in English.',
+            'ko': 'Generate the summary in Korean. 모든 요약 결과를 한국어로 출력하세요.',
+            'es': 'Genera el resumen en español.',
+            'fr': 'Générez le résumé en français.',
+            'de': 'Erstellen Sie die Zusammenfassung auf Deutsch.',
+            'it': 'Genera il riassunto in italiano.',
+            'pt': 'Gere o resumo em português.',
+            'ru': 'Сделайте резюме на русском языке.',
+            'ja': '要約を日本語で生成してください。',
+            'zh': '请用中文生成摘要。'
+        }.get(preferred_language, 'Generate the summary in English.')
         
         # Generate a summary
         prompt = f"""Please provide a comprehensive summary of the following transcript. 
         Focus on the main topics, key points, and important details.
+        {language_instruction}
         
         Transcript:
         {transcript[:30000]}  # Limit to avoid token limits
@@ -95,4 +118,50 @@ def summarize_with_gemini(transcript, api_key):
         return response.text
     
     except Exception as e:
-        raise Exception(f"Error generating summary: {str(e)}") 
+        raise Exception(f"Error generating summary: {str(e)}")
+
+def transcribe_video_file(video_file_path, language="en-US"):
+    """
+    Extract audio from a video file and transcribe it to text using speech_recognition.
+    Handles long files by chunking audio into 60-second segments.
+    Returns the transcript as a string.
+    """
+    recognizer = sr.Recognizer()
+    transcript = ""
+    temp_audio_path = None
+    try:
+        # Extract audio from video using moviepy
+        with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_audio:
+            temp_audio_path = temp_audio.name
+        video = VideoFileClip(video_file_path)
+        video.audio.write_audiofile(temp_audio_path, codec='pcm_s16le')
+        video.close()
+
+        # Chunked transcription
+        audio = AudioSegment.from_wav(temp_audio_path)
+        chunk_length_ms = 60 * 1000  # 60 seconds
+        chunks = [audio[i:i+chunk_length_ms] for i in range(0, len(audio), chunk_length_ms)]
+        
+        for i, chunk in enumerate(chunks):
+            with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as chunk_file:
+                chunk.export(chunk_file.name, format='wav')
+                chunk_path = chunk_file.name
+            try:
+                with sr.AudioFile(chunk_path) as source:
+                    audio_data = recognizer.record(source)
+                    try:
+                        chunk_transcript = recognizer.recognize_google(audio_data, language=language)
+                        transcript += chunk_transcript + " "
+                    except sr.UnknownValueError:
+                        transcript += "[Unintelligible audio] "
+                    except sr.RequestError as e:
+                        transcript += f"[Recognition error: {e}] "
+            finally:
+                if os.path.exists(chunk_path):
+                    os.remove(chunk_path)
+        return transcript.strip()
+    except Exception as e:
+        raise Exception(f"Error transcribing video file: {str(e)}")
+    finally:
+        if temp_audio_path and os.path.exists(temp_audio_path):
+            os.remove(temp_audio_path) 

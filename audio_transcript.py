@@ -6,7 +6,7 @@ import time
 from requests.exceptions import RequestException
 from google.cloud import storage
 
-GCS_BUCKET_NAME = 'startup_consulting'
+GCS_BUCKET_NAME = 'startup-consulting'
 
 def preprocess_audio(audio_file_path):
     """Preprocess audio file to ensure compatibility with speech recognition."""
@@ -67,51 +67,52 @@ def extract_transcript(audio_file_path, language='en-US', max_retries=3, retry_d
         # Preprocess the audio file
         processed_audio = preprocess_audio(audio_file_path)
         temp_files.append(processed_audio)
-        
+
         # Split into chunks
-        audio_chunks = chunk_audio(processed_audio)
+        audio = AudioSegment.from_file(processed_audio)
+        chunk_length_ms = 30000
+        num_chunks = (len(audio) + chunk_length_ms - 1) // chunk_length_ms
+        audio_chunks = []
+        for i in range(num_chunks):
+            start_ms = i * chunk_length_ms
+            end_ms = min((i + 1) * chunk_length_ms, len(audio))
+            chunk = audio[start_ms:end_ms]
+            temp_chunk = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
+            temp_chunk.close()
+            chunk.export(temp_chunk.name, format='wav')
+            audio_chunks.append(temp_chunk.name)
         temp_files.extend(audio_chunks)
-        
-        # Initialize recognizer
+
         recognizer = sr.Recognizer()
-        
-        # Process each chunk
         full_transcript = []
         for chunk_file in audio_chunks:
             for attempt in range(max_retries):
                 try:
                     with sr.AudioFile(chunk_file) as source:
-                        # Adjust for ambient noise
-                        recognizer.adjust_for_ambient_noise(source)
-                        # Record the audio
                         audio_data = recognizer.record(source)
-                    
-                    # Perform speech recognition
                     chunk_transcript = recognizer.recognize_google(audio_data, language=language)
                     full_transcript.append(chunk_transcript)
-                    break  # Success, move to next chunk
-                    
+                    break
                 except sr.UnknownValueError:
                     # If we can't understand this chunk, just skip it
                     break
                 except (sr.RequestError, RequestException) as e:
                     if attempt < max_retries - 1:
-                        time.sleep(retry_delay * (attempt + 1))  # Exponential backoff
+                        time.sleep(retry_delay * (attempt + 1))
                         continue
                     raise Exception(f"Could not request results from Speech Recognition service after {max_retries} attempts: {str(e)}")
-        
+
         # Clean up temporary files
         for temp_file in temp_files:
             if os.path.exists(temp_file):
                 os.unlink(temp_file)
-        
+
         if not full_transcript:
             raise Exception("Could not generate transcript from any part of the audio")
-        
+
         return " ".join(full_transcript)
-                
+
     except Exception as e:
-        # Clean up any remaining temporary files
         for temp_file in temp_files:
             if os.path.exists(temp_file):
                 os.unlink(temp_file)

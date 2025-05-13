@@ -124,7 +124,7 @@ class BlogGenerator:
         """
         return html_template
 
-GCS_BUCKET_NAME = 'startup_consulting'
+GCS_BUCKET_NAME = 'startup-consulting'
 
 def upload_to_gcs(local_file_path, destination_blob_name):
     storage_client = storage.Client()

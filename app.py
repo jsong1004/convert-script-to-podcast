@@ -11,7 +11,7 @@ import google.generativeai as genai # For Google Gemini
 from pptx import Presentation # For reading .pptx files
 import PyPDF2 # For reading PDF files
 from blog_generator import BlogGenerator
-from youtube_transcript import extract_video_id, get_transcript, summarize_with_gemini
+from youtube_transcript import extract_video_id, get_transcript, summarize_with_gemini, transcribe_video_file
 from audio_transcript import extract_transcript, get_supported_languages
 from google.cloud import storage
 
@@ -23,7 +23,7 @@ load_dotenv()
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'output_audio'
-app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100 MB upload limit
+app.config['MAX_CONTENT_LENGTH'] = 1000 * 1024 * 1024  # 100 MB upload limit
 
 # Register blueprints
 app.register_blueprint(podcast_bp)
@@ -35,6 +35,7 @@ if not os.path.exists(app.config['UPLOAD_FOLDER']):
 # Load API keys (Blueprints will load them via os.getenv as well, or could access via app.config)
 MURFA_API_KEY = os.getenv("MURFA_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+GOOGLE_MODEL = os.getenv("GOOGLE_MODEL", "gemini-2.0-flash")
 
 if not MURFA_API_KEY:
     print("Error: MURFA_API_KEY not found in .env file.") # Or use app.logger if app is initialized
@@ -49,7 +50,7 @@ else:
     except Exception as e:
         print(f"Failed to configure Google Gemini API: {e}")
 
-GCS_BUCKET_NAME = 'startup_consulting'
+GCS_BUCKET_NAME = 'startup-consulting'
 
 def upload_to_gcs(local_file_path, destination_blob_name):
     storage_client = storage.Client()
@@ -66,116 +67,7 @@ def generate_gcs_signed_url(blob_name, expiration=3600):
     return url
 
 # --- Helper functions for Presentation Converter ---
-def extract_text_from_pptx(pptx_file_stream):
-    """Extracts all text from a .pptx file stream."""
-    try:
-        prs = Presentation(pptx_file_stream)
-        text_runs = []
-        for slide in prs.slides:
-            for shape in slide.shapes:
-                if not shape.has_text_frame:
-                    continue
-                for paragraph in shape.text_frame.paragraphs:
-                    for run in paragraph.runs:
-                        text_runs.append(run.text)
-        return "\n".join(text_runs)
-    except Exception as e:
-        app.logger.error(f"Error extracting text from PPTX: {e}")
-        raise ValueError(f"Could not extract text from presentation: {e}")
-
-def extract_text_from_pdf(pdf_file_stream):
-    """Extracts all text from a PDF file stream."""
-    try:
-        pdf_reader = PyPDF2.PdfReader(pdf_file_stream)
-        text = []
-        for page_num in range(len(pdf_reader.pages)):
-            page = pdf_reader.pages[page_num]
-            text.append(page.extract_text())
-        return "\n".join(text)
-    except Exception as e:
-        app.logger.error(f"Error extracting text from PDF: {e}")
-        raise ValueError(f"Could not extract text from PDF: {e}")
-
-def generate_script_with_gemini(presentation_text, script_style):
-    """Generates script using Google Gemini API."""
-    if not GOOGLE_API_KEY:
-        raise ValueError("Google API Key is not configured.")
-
-    model_name = "gemini-1.5-pro-latest" # Or "gemini-pro" if 1.5 is not available/needed
-    try:
-        model = genai.GenerativeModel(model_name)
-    except Exception as e:
-        app.logger.error(f"Error initializing Gemini model '{model_name}': {e}")
-        # Fallback or specific model selection logic can be added here
-        # For example, try "gemini-pro" if "gemini-1.5-pro-latest" fails
-        try:
-            model_name = "gemini-pro" # A common fallback
-            model = genai.GenerativeModel(model_name)
-            app.logger.info(f"Successfully initialized fallback Gemini model: {model_name}")
-        except Exception as fallback_e:
-            app.logger.error(f"Error initializing fallback Gemini model '{model_name}': {fallback_e}")
-            raise ValueError(f"Could not initialize Gemini model. Please check API key and model availability. Error: {fallback_e}")
-
-
-    common_prompt_instructions = (
-        "You are an expert scriptwriter. Convert the following presentation slide content into a spoken script. "
-        "The script should be very detailed for each slide concept. "
-        "The tone should be passionate, knowledgeable, and educational, like someone speaking engagingly in front of many people. "
-        "Include easy-to-understand examples where appropriate to clarify concepts. "
-        "Do not include any titles, subtitles, or descriptive slide markers like 'Slide 1 of 5' or 'Next slide'. "
-        "Only output the text that will be spoken. Ensure smooth transitions between ideas if they were on different slides."
-    )
-
-    if script_style == "podcast":
-        style_specific_instructions = (
-            "The script should be in a podcast format with multiple voices. "
-            "Use 'HOST:' for the main narrator and overall flow. "
-            "Use 'VOICE 1:', 'VOICE 2:', etc., for different perspectives, examples, or to break up longer segments of HOST narration. "
-            "Ensure a conversational and engaging flow between speakers. The HOST should guide the conversation."
-        )
-    elif script_style == "speech":
-        style_specific_instructions = (
-            "The script should be for a single speaker. All text should be attributed to 'HOST:'. "
-            "Ensure a continuous, engaging monologue suitable for a keynote presentation."
-        )
-    else:
-        raise ValueError("Invalid script style selected.")
-
-    full_prompt = f"{common_prompt_instructions}\n\n{style_specific_instructions}\n\nPRESENTATION CONTENT:\n---\n{presentation_text}\n---\n\nGENERATED SCRIPT:"
-
-    try:
-        app.logger.info(f"Sending request to Gemini with model {model_name}. Prompt length: {len(full_prompt)}")
-        response = model.generate_content(full_prompt)
-        # Check for safety ratings or blocks if necessary, depending on Gemini version and response structure
-        if hasattr(response, 'prompt_feedback') and response.prompt_feedback.block_reason:
-            app.logger.error(f"Gemini content generation blocked. Reason: {response.prompt_feedback.block_reason}")
-            app.logger.error(f"Block details: {response.prompt_feedback.safety_ratings}")
-            raise ValueError(f"Content generation blocked by safety filters. Reason: {response.prompt_feedback.block_reason}")
-
-        if not response.parts:
-             app.logger.warning(f"Gemini response has no parts. Full response: {response}")
-             # Try to access text directly if parts is empty but text attribute exists
-             if hasattr(response, 'text') and response.text:
-                 return response.text.strip()
-             raise ValueError("Received an empty response from Gemini.")
-        
-        # Assuming the first part contains the text, or iterate if multiple parts
-        generated_text = "".join(part.text for part in response.parts if hasattr(part, 'text'))
-        if not generated_text.strip():
-            app.logger.warning(f"Gemini generated empty text. Full response: {response}")
-            raise ValueError("Gemini generated an empty script.")
-            
-        app.logger.info("Successfully received script from Gemini.")
-        return generated_text.strip()
-
-    except Exception as e:
-        app.logger.error(f"Error calling Google Gemini API: {e}", exc_info=True)
-        # Check for specific API errors if the SDK provides them
-        if "API key not valid" in str(e) or "PERMISSION_DENIED" in str(e):
-             raise ValueError("Google Gemini API Key is invalid or lacks permissions. Please check your .env file and Google Cloud project settings.")
-        raise ValueError(f"Failed to generate script using Gemini: {e}")
-
-# --- End of Presentation Converter helpers ---
+# REMOVE extract_text_from_pptx, extract_text_from_pdf, generate_script_with_gemini (presentation conversion helpers)
 
 def parse_script(script_text):
     """Parses the input script into a list of dictionaries.
@@ -336,52 +228,6 @@ def convert_podcast():
 
     return render_template('convert_podcast.html')
 
-@app.route('/convert_presentation', methods=['GET', 'POST'])
-def convert_presentation():
-    if request.method == 'POST':
-        presentation_file = request.files.get('presentation_file')
-        script_style = request.form.get('script_style')
-        
-        if not presentation_file or presentation_file.filename == '':
-            return render_template('convert_presentation.html', error="No presentation file selected.")
-        
-        if not script_style:
-            return render_template('convert_presentation.html', error="No script style selected.")
-
-        allowed_extensions = {'pptx', 'pdf'}
-        file_ext = presentation_file.filename.rsplit('.', 1)[1].lower() if '.' in presentation_file.filename else ''
-        
-        if file_ext not in allowed_extensions:
-            return render_template('convert_presentation.html', error="Invalid file type. Please upload a .pptx or .pdf file.")
-
-        try:
-            app.logger.info(f"Processing presentation file: {presentation_file.filename}, style: {script_style}")
-            # Read file into a stream to pass to pptx.Presentation or PDF parser
-            file_stream = io.BytesIO(presentation_file.read())
-            
-            if file_ext == 'pptx':
-                presentation_text = extract_text_from_pptx(file_stream)
-            elif file_ext == 'pdf':
-                presentation_text = extract_text_from_pdf(file_stream)
-            
-            if not presentation_text.strip():
-                return render_template('convert_presentation.html', error="Could not extract any text from the presentation, or the presentation is empty.")
-
-            app.logger.info(f"Extracted text length: {len(presentation_text)}")
-            
-            generated_script = generate_script_with_gemini(presentation_text, script_style)
-            
-            return render_template('convert_presentation.html', generated_script=generated_script)
-
-        except ValueError as ve: # Catch custom ValueErrors for better user feedback
-            app.logger.error(f"ValueError during presentation conversion: {ve}")
-            return render_template('convert_presentation.html', error=str(ve))
-        except Exception as e:
-            app.logger.error(f"Unexpected error during presentation conversion: {e}", exc_info=True)
-            return render_template('convert_presentation.html', error=f"An unexpected error occurred: {str(e)}")
-
-    return render_template('convert_presentation.html')
-
 @app.route('/convert_to_blog', methods=['GET', 'POST'])
 def convert_to_blog():
     if request.method == 'POST':
@@ -456,37 +302,48 @@ def youtube_transcript():
     if request.method == 'POST':
         youtube_url = request.form.get('youtube_url')
         language = request.form.get('language', 'en')
-        
-        if not youtube_url:
-            return render_template('youtube_transcript.html', error="Please provide a YouTube URL.")
+        video_file = request.files.get('video_file')
+        transcript = None
+        summary = None
+        error = None
         
         try:
-            video_id = extract_video_id(youtube_url)
-            if not video_id:
-                return render_template('youtube_transcript.html', error="Invalid YouTube URL.")
-            
-            transcript = get_transcript(video_id, language)
-            if not transcript:
-                return render_template('youtube_transcript.html', error="Could not generate transcript.")
-            
-            # Generate summary using Gemini
-            if GOOGLE_API_KEY:
+            if video_file and video_file.filename != '':
+                # Handle uploaded video file
+                import tempfile
+                from youtube_transcript import transcribe_video_file, summarize_with_gemini
+                with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(video_file.filename)[-1]) as temp_video:
+                    video_file.save(temp_video.name)
+                    temp_video_path = temp_video.name
                 try:
-                    summary = summarize_with_gemini(transcript, GOOGLE_API_KEY)
-                except Exception as e:
-                    app.logger.error(f"Error generating summary: {e}")
-                    summary = None
+                    # Use language code for speech_recognition (e.g., 'en-US', 'ko-KR')
+                    lang_map = {
+                        'en': 'en-US', 'ko': 'ko-KR'
+                    }
+                    sr_language = lang_map.get(language, 'en-US')
+                    transcript = transcribe_video_file(temp_video_path, language=sr_language)
+                finally:
+                    if os.path.exists(temp_video_path):
+                        os.remove(temp_video_path)
+                if GOOGLE_API_KEY:
+                    summary = summarize_with_gemini(transcript, GOOGLE_API_KEY, preferred_language=language)
+            elif youtube_url:
+                # Handle YouTube URL as before
+                from youtube_transcript import extract_video_id, get_transcript, summarize_with_gemini
+                video_id = extract_video_id(youtube_url)
+                if not video_id:
+                    error = "Invalid YouTube URL."
+                else:
+                    transcript = get_transcript(video_id, language=language)
+                    if not transcript:
+                        error = "Could not generate transcript."
+                    elif GOOGLE_API_KEY:
+                        summary = summarize_with_gemini(transcript, GOOGLE_API_KEY, preferred_language=language)
             else:
-                summary = None
-            
-            return render_template('youtube_transcript.html', 
-                                 transcript=transcript,
-                                 summary=summary)
-            
+                error = "Please provide a YouTube URL or upload a video file."
         except Exception as e:
-            app.logger.error(f"Error processing YouTube transcript: {e}")
-            return render_template('youtube_transcript.html', error=str(e))
-    
+            error = str(e)
+        return render_template('youtube_transcript.html', transcript=transcript, summary=summary, error=error)
     return render_template('youtube_transcript.html')
 
 @app.route('/audio_transcript', methods=['GET', 'POST'])
@@ -532,9 +389,49 @@ def audio_transcript():
     
     return render_template('audio_transcript.html', languages=get_supported_languages())
 
+@app.route('/convert_text_to_script', methods=['GET', 'POST'])
+def convert_text_to_script():
+    if request.method == 'POST':
+        text_input = request.form.get('text_input')
+        text_file = request.files.get('text_file')
+        script_style = request.form.get('script_style')
+        output_language = request.form.get('output_language', 'en')
+        final_text = text_input or ''
+
+        if text_file and text_file.filename != '':
+            try:
+                if text_file.content_type.startswith('text/') or text_file.filename.endswith(('.txt', '.md')):
+                    final_text = text_file.read().decode('utf-8')
+                else:
+                    return render_template('convert_text_to_script.html', error="Invalid file type. Please upload a text file (e.g., .txt, .md).", text_input=text_input)
+            except Exception as e:
+                app.logger.error(f"Error reading uploaded file: {e}")
+                return render_template('convert_text_to_script.html', error=f"Error reading uploaded file: {str(e)}", text_input=text_input)
+
+        if not final_text.strip():
+            return render_template('convert_text_to_script.html', error="Text input or a text file is required.", text_input=text_input)
+        if not script_style:
+            return render_template('convert_text_to_script.html', error="No script style selected.", text_input=final_text)
+        if not GOOGLE_API_KEY:
+            return render_template('convert_text_to_script.html', error="Google API Key is not configured.", text_input=final_text)
+        try:
+            generated_script = generate_script_with_gemini(final_text, script_style, output_language)
+            return render_template('convert_text_to_script.html', 
+                                 generated_script=generated_script, 
+                                 text_input=final_text,
+                                 output_language=output_language)
+        except Exception as e:
+            app.logger.error(f"Error generating script: {e}")
+            return render_template('convert_text_to_script.html', 
+                                 error=f"Error generating script: {str(e)}", 
+                                 text_input=final_text,
+                                 output_language=output_language)
+    return render_template('convert_text_to_script.html')
+
 if __name__ == '__main__':
     # Basic logging configuration
-    # Flask's app.logger will use this configuration once the app is running
+    app.run(host='0.0.0.0', port=8080, debug=True)
+        # Flask's app.logger will use this configuration once the app is running
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     # Log API key status using app.logger after app is created
     with app.app_context():

@@ -27,20 +27,22 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('convert_podcast') }}">Script to Podcast</a>
+                        <a class="nav-link" href="{{ url_for('presentation_bp.convert_presentation_to_script') }}">Text to Adudio Script</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('convert_presentation') }}">Presentation to Script</a>
+                        <a class="nav-link" href="{{ url_for('youtube_transcript') }}">YouTube/Video Transcript</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('convert_podcast') }}">Script to Podcast</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('convert_to_blog') }}">Script to Blog</a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('youtube_transcript') }}">YouTube Transcript</a>
-                    </li>
+
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('audio_transcript') }}">Audio Transcript</a>
                     </li>
+
                 </ul>
             </div>
         </div>

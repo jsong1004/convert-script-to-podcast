@@ -150,8 +150,8 @@
         
         <form method="POST" enctype="multipart/form-data">
             <div class="form-group">
-                <label for="presentation_file">Upload Presentation File (.pptx or .pdf):</label>
-                <input type="file" name="presentation_file" id="presentation_file" accept=".pptx,.pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/pdf" required>
+                <label for="presentation_file">Upload Presentation File (.pptx, .pdf, .md, or .txt):</label>
+                <input type="file" name="presentation_file" id="presentation_file" accept=".pptx,.pdf,.md,.txt,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/pdf,text/markdown,text/plain" required>
             </div>
 
             <div class="form-group">
@@ -164,6 +164,14 @@
                     <input type="radio" id="speech_style" name="script_style" value="speech">
                     <label for="speech_style">Speech Style (Single Voice: HOST only)</label>
                 </div>
+            </div>
+
+            <div class="form-group">
+                <label for="output_language">Select Output Language:</label>
+                <select name="output_language" id="output_language" required>
+                    <option value="en">English</option>
+                    <option value="ko">Korean</option>
+                </select>
             </div>
             
             <div class="form-group">

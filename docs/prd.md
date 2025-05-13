@@ -74,7 +74,7 @@ This project involves developing a Flask web application that provides multiple 
 - Clean, intuitive web interface
 - Navigation between different tools
 - File upload interface for presentations and PDFs
-- Script input area
+  - Script input area
 - Style selection options
 - Download link for generated audio
 - Error feedback and status messages
