@@ -321,6 +321,7 @@ def youtube_transcript():
                         'en': 'en-US', 'ko': 'ko-KR'
                     }
                     sr_language = lang_map.get(language, 'en-US')
+                    app.logger.info(f"Transcribing video file with language: {sr_language}")
                     transcript = transcribe_video_file(temp_video_path, language=sr_language)
                 finally:
                     if os.path.exists(temp_video_path):

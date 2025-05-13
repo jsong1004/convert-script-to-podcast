@@ -25,12 +25,10 @@ A Flask-based web application that provides AI-powered tools for converting cont
 - Markdown support
 
 ### 4. YouTube Transcript Generator
-- Extract transcripts from YouTube videos
-- Support for multiple languages
-- Automatic language detection and fallback
-- AI-powered summary generation using Google Gemini
-- Clean and readable transcript formatting
-- Support for various YouTube URL formats (standard, shorts, live streams)
+- Accepts both YouTube URLs and direct video file uploads (MP4, MOV, etc.)
+- Extracts and summarizes transcripts in multiple languages, including English and Korean
+- Uses chunked audio transcription for long videos to avoid API limits
+- AI-powered summarization with Gemini, with output language matching user preference
 
 ### 5. Audio Transcript Generator
 - Converts audio files to text transcripts
@@ -54,6 +52,12 @@ A Flask-based web application that provides AI-powered tools for converting cont
 - Murf AI API key
 - Google Gemini API key
 - Google Cloud Platform account (for deployment)
+- moviepy
+- pydub
+- SpeechRecognition
+- google-generativeai
+- youtube-transcript-api
+- google-cloud-storage
 
 ## Installation
 
@@ -78,6 +82,8 @@ pip install -r requirements.txt
 ```
 MURFA_API_KEY=your_murf_api_key
 GOOGLE_API_KEY=your_google_api_key
+GOOGLE_MODEL=gemini-pro
+GCS_BUCKET_NAME=your-gcs-bucket
 ```
 
 ## Usage
@@ -248,3 +254,16 @@ gcs_url = upload_to_gcs(output_path, 'your-bucket-name', unique_filename)
 - If so, please provide your bucket name (or let me know if you need help creating one), and I can generate the code changes for you!
 
 Let me know how you'd like to proceed!
+
+## Cloud Integration
+- All generated files are stored in Google Cloud Storage (GCS) with signed URLs for downloads.
+- Deployment-ready for Google Cloud Run.
+
+## Configuration
+- The maximum upload size is set to 1000 MB (1 GB) by default. You can adjust this in `app.py` via `MAX_CONTENT_LENGTH`.
+
+## Notable Enhancements
+- Multi-language support for all major features (English, Korean, and more).
+- Chunked audio transcription for long video/audio files.
+- User-friendly error handling and feedback.
+- Modern, responsive UI with clear navigation.
