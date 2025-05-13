@@ -6,6 +6,7 @@ from flask import Blueprint, render_template, request, current_app, url_for
 from murf import Murf
 from pydub import AudioSegment
 from google.cloud import storage
+import re
 
 # Ensure MURFA_API_KEY is loaded
 MURFA_API_KEY = os.getenv("MURFA_API_KEY")
@@ -13,6 +14,16 @@ MURFA_API_KEY = os.getenv("MURFA_API_KEY")
 podcast_bp = Blueprint('podcast_bp', __name__, template_folder='../templates')
 
 GCS_BUCKET_NAME = 'startup-consulting'
+
+def detect_language(text):
+    """Detect if the text is primarily Korean or English."""
+    # Count Korean characters (Hangul)
+    korean_chars = len(re.findall(r'[가-힣]', text))
+    # Count English characters
+    english_chars = len(re.findall(r'[a-zA-Z]', text))
+    
+    # If there are more Korean characters than English, consider it Korean
+    return 'ko' if korean_chars > english_chars else 'en'
 
 def parse_script(script_text):
     lines = script_text.strip().split('\n')
@@ -29,17 +40,23 @@ def parse_script(script_text):
             current_app.logger.info(f"Skipping line without speaker: {line}")
     return parsed_script
 
-def get_voice_config(speaker_name):
+def get_voice_config(speaker_name, output_language='en'):
     speaker_name_upper = speaker_name.upper()
-    if speaker_name_upper == "HOST":
-        return "en-US-ryan"
-    elif speaker_name_upper == "VOICE 1":
-        return "en-US-natalie"
-    elif speaker_name_upper == "VOICE 2":
-        return "en-US-natalie"
+    if output_language == 'ko':
+        if speaker_name_upper == "HOST":
+            return "ko-KR-jong-su"  # Male voice for HOST
+        else:
+            return "ko-KR-jangmi"   # Female voice for others
     else:
-        current_app.logger.warning(f"Speaker '{speaker_name}' not recognized, using default voice.")
-        return "en-US-natalie"
+        if speaker_name_upper == "HOST":
+            return "en-US-ryan"
+        elif speaker_name_upper == "VOICE 1":
+            return "en-US-natalie"
+        elif speaker_name_upper == "VOICE 2":
+            return "en-US-natalie"
+        else:
+            current_app.logger.warning(f"Speaker '{speaker_name}' not recognized, using default voice.")
+            return "en-US-natalie"
 
 def upload_to_gcs(local_file_path, destination_blob_name):
     storage_client = storage.Client()
@@ -69,7 +86,7 @@ def convert_script_to_podcast():
         elif script_text_from_area:
             final_script_text = script_text_from_area
         else:
-            return render_template('convert_podcast.html', error="Script text or a script file is required.")
+            return render_template('convert_podcast.html', error="Script text or a script file is required.", script_text=script_text_from_area)
 
         if not final_script_text.strip():
              return render_template('convert_podcast.html', error="Script content is empty.", script_text=script_text_from_area)
@@ -83,13 +100,21 @@ def convert_script_to_podcast():
             if not parsed_script:
                 return render_template('convert_podcast.html', error="Could not parse the script. Ensure 'SPEAKER: Text' format.", script_text=final_script_text)
 
+            # Detect language from the first non-empty text segment
+            output_language = 'en'  # default
+            for item in parsed_script:
+                if item['text'].strip():
+                    output_language = detect_language(item['text'])
+                    current_app.logger.info(f"Detected language: {output_language}")
+                    break
+
             audio_segments = []
             murf_client = Murf(api_key=MURFA_API_KEY)
             current_app.logger.info(f"Parsed script for podcast: {parsed_script}")
 
             for i, item in enumerate(parsed_script):
                 current_app.logger.info(f"Processing segment {i+1}/{len(parsed_script)}: Speaker: {item['speaker']}")
-                voice_id = get_voice_config(item['speaker'])
+                voice_id = get_voice_config(item['speaker'], output_language=output_language)
                 
                 tts_response = murf_client.text_to_speech.generate(text=item['text'], voice_id=voice_id)
                 audio_url = tts_response.audio_file
@@ -115,16 +140,13 @@ def convert_script_to_podcast():
                 combined_audio += segment
             
             unique_filename = f"podcast_audio_{uuid.uuid4().hex}.mp3"
-            # Access UPLOAD_FOLDER from current_app.config
             output_path = os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename)
             
             current_app.logger.info(f"Exporting combined podcast audio to {output_path}")
             combined_audio.export(output_path, format="mp3")
 
-            # Use url_for with the main app's download_file endpoint
-            audio_file_url = url_for('download_file', filename=unique_filename, _external=False) # Use relative path for template
+            audio_file_url = url_for('download_file', filename=unique_filename, _external=False)
 
-            # Upload to GCS
             gcs_url = upload_to_gcs(output_path, unique_filename)
 
             return render_template('convert_podcast.html', audio_file_url=gcs_url, script_text=final_script_text)

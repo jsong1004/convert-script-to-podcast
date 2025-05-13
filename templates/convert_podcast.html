@@ -1,47 +1,42 @@
 {% extends "base.html" %}
 {% block content %}
-    <div class="container">
-        <div class="nav-link">
-            <a href="{{ url_for('presentation_bp.convert_presentation_to_script') }}">Go to Convert Presentation Page</a>
-             | <a href="{{ url_for('index') }}">Home</a>
-        </div>
-        <h1>Convert Script to Podcast</h1>
-        <p class="description">
-            Enter your script with speaker labels (e.g., HOST:, Voice 1:) or upload a text file. The application will generate a multi-voice podcast audio file.
-        </p>
-
-        {% if error %}
-            <p class="message error">{{ error }}</p>
-        {% endif %}
-        
-        {% if audio_file_url %}
-            <div class="message success">
-                <p>Audio generated successfully!</p>
-                <div class="audio-player">
-                    <p>Listen to your podcast:</p>
-                    <audio controls src="{{ audio_file_url }}">
-                        Your browser does not support the audio element.
-                    </audio>
-                </div>
-            </div>
-        {% endif %}
-
-        <form method="POST" enctype="multipart/form-data">
-            <div class="form-group">
-                <label for="script">Enter your audio script:</label>
-                <textarea name="script" id="script" placeholder="HOST: Hello world!&#10;Voice 1: This is a test.">{{ script_text if script_text else '' }}</textarea>
-            </div>
-            
-            <div class="or-separator">OR</div>
-
-            <div class="form-group">
-                <label for="script_file">Upload a script file (e.g., .txt):</label>
-                <input type="file" name="script_file" id="script_file" accept=".txt,.md,.rtf">
-            </div>
-            
-            <div class="form-group">
-                <input type="submit" value="Generate Podcast">
-            </div>
-        </form>
+<div class="container mt-5">
+    <h2 class="mb-4">Script to Podcast Generator</h2>
+    {% if error %}
+    <div class="alert alert-danger" role="alert">
+        {{ error }}
     </div>
+    {% endif %}
+    <div class="card">
+        <div class="card-body">
+            <form method="POST" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label for="script" class="form-label">Enter your audio script:</label>
+                    <textarea class="form-control" name="script" id="script" placeholder="HOST: Hello world!&#10;Voice 1: This is a test.">{{ script_text if script_text else '' }}</textarea>
+                    <small class="form-text text-muted">The language will be automatically detected from your text. Korean text will use Korean voices, English text will use English voices.</small>
+                </div>
+                <div class="or-separator text-center mb-3">OR</div>
+                <div class="mb-3">
+                    <label for="script_file" class="form-label">Upload a script file (e.g., .txt):</label>
+                    <input type="file" class="form-control" name="script_file" id="script_file" accept=".txt,.md,.rtf">
+                </div>
+                <button type="submit" class="btn btn-primary">Generate Podcast</button>
+            </form>
+        </div>
+    </div>
+    {% if audio_file_url %}
+    <div class="card mt-4">
+        <div class="card-header">
+            <h3 class="mb-0">Podcast Audio</h3>
+        </div>
+        <div class="card-body">
+            <div class="audio-player">
+                <audio controls src="{{ audio_file_url }}" style="width:100%;">
+                    Your browser does not support the audio element.
+                </audio>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
 {% endblock %}

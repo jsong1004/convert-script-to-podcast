@@ -1,87 +1,85 @@
 {% extends "base.html" %}
 {% block content %}
-    <div class="container">
-        <div class="nav-link">
-            <a href="{{ url_for('podcast_bp.convert_script_to_podcast') }}">Go to Convert Script to Podcast Page</a>
-             | <a href="{{ url_for('index') }}">Home</a>
-        </div>
-        <h1>Convert Presentation to Audio Script</h1>
-        <p class="description">
-            Upload your presentation file (.pptx) or PDF file (.pdf) and select a script style. The content will be transformed into a detailed audio script using AI.
-        </p>
-
-        {% if error %}
-            <p class="message error">{{ error }}</p>
-        {% endif %}
-        
-        <form method="POST" enctype="multipart/form-data">
-            <div class="form-group">
-                <label for="presentation_file">Upload Presentation File (.pptx, .pdf, .md, or .txt):</label>
-                <input type="file" name="presentation_file" id="presentation_file" accept=".pptx,.pdf,.md,.txt,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/pdf,text/markdown,text/plain" required>
-            </div>
-
-            <div class="form-group">
-                <label>Select Script Style:</label>
-                <div class="radio-group">
-                    <input type="radio" id="podcast_style" name="script_style" value="podcast" checked>
-                    <label for="podcast_style">Podcast Style (Multiple Voices: HOST, VOICE 1, etc.)</label>
-                </div>
-                <div class="radio-group">
-                    <input type="radio" id="speech_style" name="script_style" value="speech">
-                    <label for="speech_style">Speech Style (Single Voice: HOST only)</label>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label for="output_language">Select Output Language:</label>
-                <select name="output_language" id="output_language" required>
-                    <option value="en">English</option>
-                    <option value="ko">Korean</option>
-                </select>
-            </div>
-            
-            <div class="form-group">
-                <input type="submit" value="Generate Script">
-            </div>
-        </form>
-
-        {% if generated_script %}
-            <div class="form-group">
-                <h2>Generated Script:</h2>
-                <textarea id="generated_script" readonly>{{ generated_script }}</textarea>
-                <div class="download-container">
-                    <button id="download-script" class="download-button">Download Script as Text File</button>
-                </div>
-            </div>
-            
-            <script>
-                document.getElementById('download-script').addEventListener('click', function() {
-                    // Get the script content
-                    const scriptContent = document.getElementById('generated_script').value;
-                    
-                    // Create a blob with the content
-                    const blob = new Blob([scriptContent], { type: 'text/plain' });
-                    
-                    // Create a temporary URL for the blob
-                    const url = window.URL.createObjectURL(blob);
-                    
-                    // Create a temporary anchor element
-                    const a = document.createElement('a');
-                    a.href = url;
-                    
-                    // Set the filename - use timestamp for uniqueness
-                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-                    a.download = `script_${timestamp}.txt`;
-                    
-                    // Append to the document, click it, and remove it
-                    document.body.appendChild(a);
-                    a.click();
-                    
-                    // Clean up
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
-                });
-            </script>
-        {% endif %}
+<div class="container mt-5">
+    <h2 class="mb-4">Convert Text to Audio Script</h2>
+    {% if error %}
+    <div class="alert alert-danger" role="alert">
+        {{ error }}
     </div>
+    {% endif %}
+    <div class="card">
+        <div class="card-body">
+            <form method="POST" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label for="presentation_file" class="form-label">Upload Presentation File (.pptx, .pdf, .md, or .txt):</label>
+                    <input type="file" class="form-control" name="presentation_file" id="presentation_file" accept=".pptx,.pdf,.md,.txt,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/pdf,text/markdown,text/plain" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Select Script Style:</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" id="podcast_style" name="script_style" value="podcast" checked>
+                        <label class="form-check-label" for="podcast_style">Podcast Style (Multiple Voices: HOST, VOICE 1, etc.)</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" id="speech_style" name="script_style" value="speech">
+                        <label class="form-check-label" for="speech_style">Speech Style (Single Voice: HOST only)</label>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="output_language" class="form-label">Select Output Language:</label>
+                    <select class="form-select" name="output_language" id="output_language" required>
+                        <option value="en">English</option>
+                        <option value="ko">Korean</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Generate Script</button>
+            </form>
+        </div>
+    </div>
+    {% if generated_script %}
+    <div class="card mt-4">
+        <div class="card-header">
+            <h3 class="mb-0">Generated Script</h3>
+        </div>
+        <div class="card-body">
+            <textarea id="generated_script" readonly style="width:100%; min-height:300px; background-color:#f8f9fa; font-family:monospace;">{{ generated_script }}</textarea>
+            <button id="download-script" class="btn btn-outline-primary btn-sm mt-3">Download Script as Text File</button>
+        </div>
+    </div>
+    <script>
+        document.getElementById('download-script').addEventListener('click', function() {
+            // Get the script content
+            const scriptContent = document.getElementById('generated_script').value;
+            // Create a blob with the content
+            const blob = new Blob([scriptContent], { type: 'text/plain' });
+            // Create a temporary URL for the blob
+            const url = window.URL.createObjectURL(blob);
+            // Create a temporary anchor element
+            const a = document.createElement('a');
+            a.href = url;
+            // Set the filename - use timestamp for uniqueness
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            a.download = `script_${timestamp}.txt`;
+            // Append to the document, click it, and remove it
+            document.body.appendChild(a);
+            a.click();
+            // Clean up
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        });
+    </script>
+    {% endif %}
+</div>
+<style>
+textarea#generated_script {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    max-height: 500px;
+    overflow-y: auto;
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+    font-family: monospace;
+}
+</style>
 {% endblock %}
