@@ -7,13 +7,14 @@ from murf import Murf
 from pydub import AudioSegment
 from google.cloud import storage
 import re
+from gcs_utils import upload_to_gcs, generate_gcs_signed_url
 
 # Ensure MURFA_API_KEY is loaded
 MURFA_API_KEY = os.getenv("MURFA_API_KEY")
 
-podcast_bp = Blueprint('podcast_bp', __name__, template_folder='../templates')
+DEPLOYMENT_ENV = os.getenv("DEPLOYMENT_ENV", "local")
 
-GCS_BUCKET_NAME = 'startup-consulting'
+podcast_bp = Blueprint('podcast_bp', __name__, template_folder='../templates')
 
 def detect_language(text):
     """Detect if the text is primarily Korean or English."""
@@ -57,13 +58,6 @@ def get_voice_config(speaker_name, output_language='en'):
         else:
             current_app.logger.warning(f"Speaker '{speaker_name}' not recognized, using default voice.")
             return "en-US-natalie"
-
-def upload_to_gcs(local_file_path, destination_blob_name):
-    storage_client = storage.Client()
-    bucket = storage_client.bucket(GCS_BUCKET_NAME)
-    blob = bucket.blob(destination_blob_name)
-    blob.upload_from_filename(local_file_path)
-    return blob.public_url
 
 @podcast_bp.route('/convert_script_to_podcast', methods=['GET', 'POST'])
 def convert_script_to_podcast():
@@ -145,11 +139,21 @@ def convert_script_to_podcast():
             current_app.logger.info(f"Exporting combined podcast audio to {output_path}")
             combined_audio.export(output_path, format="mp3")
 
-            audio_file_url = url_for('download_file', filename=unique_filename, _external=False)
-
-            gcs_url = upload_to_gcs(output_path, unique_filename)
-
-            return render_template('convert_podcast.html', audio_file_url=gcs_url, script_text=final_script_text)
+            print(f"DEPLOYMENT_ENV: {DEPLOYMENT_ENV}")
+            current_app.logger.info(f"DEPLOYMENT_ENV: {DEPLOYMENT_ENV}")
+            
+            if DEPLOYMENT_ENV == "cloud":
+                gcs_blob_name = unique_filename  # or f"audio/{unique_filename}" if you use a subfolder
+                gcs_url = upload_to_gcs(output_path, gcs_blob_name)
+                signed_url = generate_gcs_signed_url(gcs_blob_name)
+                print(f"GCS URL: {signed_url}")
+                current_app.logger.info(f"GCS URL: {signed_url}")
+                if os.path.exists(output_path):
+                    os.remove(output_path)
+                return render_template('convert_podcast.html', audio_file_url=signed_url, script_text=final_script_text)
+            else:
+                audio_file_url = url_for('download_file', filename=unique_filename, _external=False)
+            return render_template('convert_podcast.html', audio_file_url=audio_file_url, script_text=final_script_text)
 
         except requests.exceptions.HTTPError as http_err:
             current_app.logger.error(f"HTTP error during Murf API audio download: {http_err}")

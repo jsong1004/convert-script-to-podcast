@@ -29,6 +29,8 @@ steps:
   - '0'
   - '--max-instances'
   - '10'
+  - '--set-secrets'
+  - 'GEMINI_API_KEY=projects/711582759542/secrets/GEMINI_API_KEY:latest,MURFA_API_KEY=projects/711582759542/secrets/MURFA_API_KEY:latest'
   - '--set-env-vars'
   - 'FLASK_ENV=production'
 

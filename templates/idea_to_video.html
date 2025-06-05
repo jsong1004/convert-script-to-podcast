@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Idea to Video Prompt & Voiceover Script</h2>
+  <p>Enter your video idea or topic. The AI will generate a storyboard for a 30-second video (4 clips, each with a video prompt and a voiceover script).</p>
+  <form method="post">
+    <div class="mb-3">
+      <label for="user_input" class="form-label">Your Video Idea/Topic</label>
+      <textarea class="form-control" id="user_input" name="user_input" rows="3" required>{{ request.form.user_input or '' }}</textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">Generate Storyboard</button>
+  </form>
+  {% if error %}
+    <div class="alert alert-danger mt-3">{{ error }}</div>
+  {% endif %}
+  {% if clips %}
+    <hr>
+    <h4>Storyboard (4 Clips):</h4>
+    <div class="row">
+      {% for clip in clips %}
+        <div class="col-md-6 mb-4">
+          <div class="card h-100">
+            <div class="card-body">
+              <h5 class="card-title">Clip {{ loop.index }}</h5>
+              <p><strong>Video Prompt:</strong> {{ clip.video_prompt }}</p>
+              <p><strong>Voice Script:</strong> {{ clip.voice_script }}</p>
+              <p><strong>Audio Prompt:</strong> {{ clip.audio_prompt }}</p>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>
+{% endblock %} 

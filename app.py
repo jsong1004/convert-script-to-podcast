@@ -14,10 +14,12 @@ from blog_generator import BlogGenerator
 from youtube_transcript import extract_video_id, get_transcript, summarize_with_gemini, transcribe_video_file
 from audio_transcript import extract_transcript, get_supported_languages
 from google.cloud import storage
+from gcs_utils import upload_to_gcs, generate_gcs_signed_url
 
 # Import Blueprints
 from presentation_converter import presentation_bp
 from podcast_generator import podcast_bp, get_voice_config, detect_language
+from video_prompt_generator import generate_video_storyboard
 
 load_dotenv()
 
@@ -34,40 +36,22 @@ if not os.path.exists(app.config['UPLOAD_FOLDER']):
 
 # Load API keys (Blueprints will load them via os.getenv as well, or could access via app.config)
 MURFA_API_KEY = os.getenv("MURFA_API_KEY")
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GOOGLE_MODEL = os.getenv("GOOGLE_MODEL", "gemini-2.0-flash")
 
 if not MURFA_API_KEY:
     print("Error: MURFA_API_KEY not found in .env file.") # Or use app.logger if app is initialized
-if not GOOGLE_API_KEY:
-    print("Error: GOOGLE_API_KEY not found in .env file.") # Or use app.logger
+if not GEMINI_API_KEY:
+    print("Error: GEMINI_API_KEY not found in .env file.") # Or use app.logger
 else:
     try:
-        genai.configure(api_key=GOOGLE_API_KEY)
+        genai.configure(api_key=GEMINI_API_KEY)
         # app.logger will be available after app initialization for logging this
         # For now, print or basic log before app context is fully up for blueprints
         print("Google Gemini API configured successfully.")
     except Exception as e:
         print(f"Failed to configure Google Gemini API: {e}")
 
-GCS_BUCKET_NAME = 'startup-consulting'
-
-def upload_to_gcs(local_file_path, destination_blob_name):
-    storage_client = storage.Client()
-    bucket = storage_client.bucket(GCS_BUCKET_NAME)
-    blob = bucket.blob(destination_blob_name)
-    blob.upload_from_filename(local_file_path)
-    return blob.public_url
-
-def generate_gcs_signed_url(blob_name, expiration=3600):
-    storage_client = storage.Client()
-    bucket = storage_client.bucket(GCS_BUCKET_NAME)
-    blob = bucket.blob(blob_name)
-    url = blob.generate_signed_url(expiration=expiration)
-    return url
-
-# --- Helper functions for Presentation Converter ---
-# REMOVE extract_text_from_pptx, extract_text_from_pdf, generate_script_with_gemini (presentation conversion helpers)
 
 def parse_script(script_text):
     """Parses the input script into a list of dictionaries.
@@ -222,10 +206,10 @@ def convert_to_blog():
 
         if not final_script_text.strip():
             return render_template('convert_to_blog.html', error="Script text or a script file is required.", script_text=script_text)
-        if not GOOGLE_API_KEY:
-            return render_template('convert_to_blog.html', error="Google API Key is not configured.", script_text=final_script_text)
+        if not GEMINI_API_KEY:
+            return render_template('convert_to_blog.html', error="Gemini API Key is not configured.", script_text=final_script_text)
         try:
-            blog_generator = BlogGenerator(GOOGLE_API_KEY)
+            blog_generator = BlogGenerator(GEMINI_API_KEY)
             blog_data = blog_generator.generate_blog_post(final_script_text, blog_style)
             if not os.path.exists('output_blog'):
                 os.makedirs('output_blog')
@@ -300,8 +284,8 @@ def youtube_transcript():
                 finally:
                     if os.path.exists(temp_video_path):
                         os.remove(temp_video_path)
-                if GOOGLE_API_KEY:
-                    summary = summarize_with_gemini(transcript, GOOGLE_API_KEY, preferred_language=language)
+                if GEMINI_API_KEY:
+                    summary = summarize_with_gemini(transcript, GEMINI_API_KEY, preferred_language=language)
             elif youtube_url:
                 # Handle YouTube URL as before
                 from youtube_transcript import extract_video_id, get_transcript, summarize_with_gemini
@@ -312,8 +296,8 @@ def youtube_transcript():
                     transcript = get_transcript(video_id, language=language)
                     if not transcript:
                         error = "Could not generate transcript."
-                    elif GOOGLE_API_KEY:
-                        summary = summarize_with_gemini(transcript, GOOGLE_API_KEY, preferred_language=language)
+                    elif GEMINI_API_KEY:
+                        summary = summarize_with_gemini(transcript, GEMINI_API_KEY, preferred_language=language)
             else:
                 error = "Please provide a YouTube URL or upload a video file."
         except Exception as e:
@@ -366,12 +350,23 @@ def audio_transcript():
 
 @app.route('/convert_text_to_script', methods=['GET', 'POST'])
 def convert_text_to_script():
+    transcript_result = None
+    transcript_text_input = None
     if request.method == 'POST':
         text_input = request.form.get('text_input')
+        transcript_text_input = request.form.get('transcript_text_input')
         text_file = request.files.get('text_file')
         script_style = request.form.get('script_style')
         output_language = request.form.get('output_language', 'en')
+        action = request.form.get('action')
         final_text = text_input or ''
+
+        if action == 'transcribe':
+            # Just return the transcript text as the result (could add more processing if needed)
+            if not transcript_text_input or not transcript_text_input.strip():
+                return render_template('convert_text_to_script.html', error="Please paste text for audio transcription.", transcript_text_input=transcript_text_input)
+            transcript_result = transcript_text_input.strip()
+            return render_template('convert_text_to_script.html', transcript_text_input=transcript_text_input, transcript_result=transcript_result)
 
         if text_file and text_file.filename != '':
             try:
@@ -387,8 +382,8 @@ def convert_text_to_script():
             return render_template('convert_text_to_script.html', error="Text input or a text file is required.", text_input=text_input)
         if not script_style:
             return render_template('convert_text_to_script.html', error="No script style selected.", text_input=final_text)
-        if not GOOGLE_API_KEY:
-            return render_template('convert_text_to_script.html', error="Google API Key is not configured.", text_input=final_text)
+        if not GEMINI_API_KEY:
+            return render_template('convert_text_to_script.html', error="Gemini API Key is not configured.", text_input=final_text)
         try:
             generated_script = generate_script_with_gemini(final_text, script_style, output_language)
             return render_template('convert_text_to_script.html', 
@@ -403,6 +398,21 @@ def convert_text_to_script():
                                  output_language=output_language)
     return render_template('convert_text_to_script.html')
 
+@app.route('/idea-to-video', methods=['GET', 'POST'])
+def idea_to_video():
+    clips = None
+    error = None
+    if request.method == 'POST':
+        user_input = request.form.get('user_input', '').strip()
+        if not user_input:
+            error = "Please enter your video idea or topic."
+        else:
+            try:
+                clips = generate_video_storyboard(user_input)
+            except Exception as e:
+                error = str(e)
+    return render_template('idea_to_video.html', clips=clips, error=error)
+
 if __name__ == '__main__':
     # Basic logging configuration
     app.run(host='0.0.0.0', port=8080, debug=True)
@@ -410,7 +420,7 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     # Log API key status using app.logger after app is created
     with app.app_context():
-        if GOOGLE_API_KEY:
+        if GEMINI_API_KEY:
             app.logger.info("Google Gemini API key loaded.")
         else:
             app.logger.error("Google Gemini API key NOT loaded.")

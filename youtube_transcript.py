@@ -81,7 +81,7 @@ def get_transcript(video_id, language="en"):
         raise Exception(f"Error extracting transcript: {str(e)}")
 
 def summarize_with_gemini(transcript, api_key, preferred_language='en'):
-    """Summarize transcript using Google's Gemini model in the preferred language."""
+    """Summarize transcript using Google's Gemini model in the preferred language. 'api_key' should be GEMINI_API_KEY."""
     try:
         # Configure the Gemini API
         genai.configure(api_key=api_key)

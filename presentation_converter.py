@@ -5,8 +5,8 @@ import google.generativeai as genai
 from pptx import Presentation
 import PyPDF2
 
-# Ensure GOOGLE_API_KEY is loaded. genai should be configured in app.py
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+# Ensure GEMINI_API_KEY is loaded. genai should be configured in app.py
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 presentation_bp = Blueprint('presentation_bp', __name__, template_folder='../templates')
 
@@ -42,9 +42,9 @@ def extract_text_from_pdf(pdf_file_stream):
 
 def generate_script_with_gemini(presentation_text, script_style, output_language='en'):
     """Generates script using Google Gemini API with chunking and overlapping content."""
-    if not GOOGLE_API_KEY:
-        current_app.logger.error("Google API Key is not configured for Gemini.")
-        raise ValueError("Google API Key is not configured.")
+    if not GEMINI_API_KEY:
+        current_app.logger.error("Gemini API Key is not configured for Gemini.")
+        raise ValueError("Gemini API Key is not configured.")
 
     if not presentation_text or not isinstance(presentation_text, str):
         raise ValueError("Invalid input text provided.")
@@ -164,37 +164,38 @@ def generate_script_with_gemini(presentation_text, script_style, output_language
             )
             
             current_app.logger.info(f"Processing chunk {i+1}/{len(chunks)}. Length: {len(chunk_prompt)}")
-            
-            response = model.generate_content(
-                chunk_prompt,
-                generation_config={
-                    "temperature": 0.7,
-                    "top_p": 0.8,
-                    "top_k": 40,
-                    "max_output_tokens": 2048,
-                }
-            )
-            
-            if hasattr(response, 'prompt_feedback') and response.prompt_feedback.block_reason:
-                current_app.logger.error(f"Gemini content generation blocked. Reason: {response.prompt_feedback.block_reason}")
-                current_app.logger.error(f"Block details: {response.prompt_feedback.safety_ratings}")
-                raise ValueError(f"Content generation blocked by safety filters. Reason: {response.prompt_feedback.block_reason}")
+            current_app.logger.info(f"Chunk {i+1} prompt (first 500 chars): {chunk_prompt[:500]}")
 
-            if not response.parts:
-                current_app.logger.warning(f"Gemini response has no parts. Full response: {response}")
-                if hasattr(response, 'text') and response.text:
-                    generated_scripts.append(response.text.strip())
+            # Retry logic for Gemini empty response
+            max_retries = 2
+            for attempt in range(max_retries):
+                response = model.generate_content(
+                    chunk_prompt,
+                    generation_config={
+                        "temperature": 0.7,
+                        "top_p": 0.8,
+                        "top_k": 40,
+                        "max_output_tokens": 2048,
+                    }
+                )
+                generated_text = ""
+                if hasattr(response, 'parts') and response.parts:
+                    generated_text = "".join(part.text for part in response.parts if hasattr(part, 'text'))
+                elif hasattr(response, 'text') and response.text:
+                    generated_text = response.text.strip()
+                if generated_text.strip():
+                    generated_scripts.append(generated_text.strip())
+                    break
                 else:
-                    raise ValueError("Received an empty response from Gemini.")
+                    current_app.logger.warning(f"Gemini generated empty text on attempt {attempt+1}. Full response: {response}")
+                    if attempt < max_retries - 1:
+                        import time
+                        time.sleep(1)
             else:
-                generated_text = "".join(part.text for part in response.parts if hasattr(part, 'text'))
-                if not generated_text.strip():
-                    current_app.logger.warning(f"Gemini generated empty text. Full response: {response}")
-                    raise ValueError("Gemini generated an empty script.")
-                generated_scripts.append(generated_text.strip())
+                raise ValueError("Gemini generated an empty script after retries.")
             
             current_app.logger.info(f"Successfully processed chunk {i+1}/{len(chunks)}")
-            
+
         except Exception as e:
             current_app.logger.error(f"Error processing chunk {i+1}/{len(chunks)}: {e}")
             if "504" in str(e) or "Deadline Exceeded" in str(e):
@@ -225,50 +226,54 @@ def generate_script_with_gemini(presentation_text, script_style, output_language
 @presentation_bp.route('/convert_presentation_to_script', methods=['GET', 'POST'])
 def convert_presentation_to_script():
     if request.method == 'POST':
+        presentation_text_input = request.form.get('presentation_text_input')
         presentation_file = request.files.get('presentation_file')
         script_style = request.form.get('script_style')
         output_language = request.form.get('output_language', 'en')
-        
-        if not presentation_file or presentation_file.filename == '':
-            return render_template('convert_presentation.html', error="No presentation file selected.")
+        presentation_text = ''
+        file_ext = ''
+
+        if presentation_text_input and presentation_text_input.strip():
+            presentation_text = presentation_text_input.strip()
+        elif presentation_file and presentation_file.filename != '':
+            allowed_extensions = {'pptx', 'pdf', 'md', 'txt'}
+            file_ext = presentation_file.filename.rsplit('.', 1)[1].lower() if '.' in presentation_file.filename else ''
+            if file_ext not in allowed_extensions:
+                return render_template('convert_presentation.html', error="Invalid file type. Please upload a .pptx, .pdf, .md, or .txt file.", presentation_text_input=presentation_text_input)
+            try:
+                file_stream = io.BytesIO(presentation_file.read())
+                if file_ext == 'pptx':
+                    presentation_text = extract_text_from_pptx(file_stream)
+                elif file_ext == 'pdf':
+                    presentation_text = extract_text_from_pdf(file_stream)
+                elif file_ext in {'md', 'txt'}:
+                    file_stream.seek(0)
+                    presentation_text = file_stream.read().decode('utf-8')
+                    current_app.logger.info(f"Extracted text from {file_ext}: {presentation_text}")
+                else:
+                    presentation_text = ''
+            except Exception as e:
+                current_app.logger.error(f"Error extracting text from file: {e}")
+                return render_template('convert_presentation.html', error=f"Could not extract text from the presentation: {e}", presentation_text_input=presentation_text_input)
+        else:
+            return render_template('convert_presentation.html', error="No presentation text or file provided.", presentation_text_input=presentation_text_input)
         
         if not script_style:
-            return render_template('convert_presentation.html', error="No script style selected.")
+            return render_template('convert_presentation.html', error="No script style selected.", presentation_text_input=presentation_text_input)
 
-        allowed_extensions = {'pptx', 'pdf', 'md', 'txt'}
-        file_ext = presentation_file.filename.rsplit('.', 1)[1].lower() if '.' in presentation_file.filename else ''
-        
-        if file_ext not in allowed_extensions:
-            return render_template('convert_presentation.html', error="Invalid file type. Please upload a .pptx, .pdf, .md, or .txt file.")
+        if not presentation_text.strip():
+            return render_template('convert_presentation.html', error="Could not extract any text from the presentation, or the presentation is empty.", presentation_text_input=presentation_text_input)
 
         try:
-            current_app.logger.info(f"Processing presentation file: {presentation_file.filename}, style: {script_style}, output_language: {output_language}")
-            file_stream = io.BytesIO(presentation_file.read())
-            
-            if file_ext == 'pptx':
-                presentation_text = extract_text_from_pptx(file_stream)
-            elif file_ext == 'pdf':
-                presentation_text = extract_text_from_pdf(file_stream)
-            elif file_ext in {'md', 'txt'}:
-                file_stream.seek(0)
-                presentation_text = file_stream.read().decode('utf-8')
-                current_app.logger.info(f"Extracted text from {file_ext}: {presentation_text}")
-            else:
-                presentation_text = ''
-            
-            if not presentation_text.strip():
-                return render_template('convert_presentation.html', error="Could not extract any text from the presentation, or the presentation is empty.")
-
+            current_app.logger.info(f"Processing presentation input, style: {script_style}, output_language: {output_language}")
             current_app.logger.info(f"Extracted text length: {len(presentation_text)}")
             generated_script = generate_script_with_gemini(presentation_text, script_style, output_language)
-            
-            return render_template('convert_presentation.html', generated_script=generated_script, output_language=output_language)
-
+            return render_template('convert_presentation.html', generated_script=generated_script, output_language=output_language, presentation_text_input=presentation_text_input)
         except ValueError as ve:
             current_app.logger.error(f"ValueError during presentation conversion: {ve}")
-            return render_template('convert_presentation.html', error=str(ve))
+            return render_template('convert_presentation.html', error=str(ve), presentation_text_input=presentation_text_input)
         except Exception as e:
             current_app.logger.error(f"Unexpected error during presentation conversion: {e}", exc_info=True)
-            return render_template('convert_presentation.html', error=f"An unexpected error occurred: {str(e)}")
+            return render_template('convert_presentation.html', error=f"An unexpected error occurred: {str(e)}", presentation_text_input=presentation_text_input)
 
     return render_template('convert_presentation.html')

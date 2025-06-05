@@ -65,33 +65,33 @@ A Flask-based web application that provides AI-powered tools for converting cont
 ```bash
 git clone https://github.com/jsong1004/convert-script-to-podcast
 cd voice
-```
+   ```
 
 2. Create and activate a virtual environment:
 ```bash
-python -m venv venv
+   python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
+   ```
 
 3. Install dependencies:
 ```bash
-pip install -r requirements.txt
-```
+   pip install -r requirements.txt
+   ```
 
 4. Create a `.env` file in the project root with your API keys:
-```
+   ```
 MURFA_API_KEY=your_murf_api_key
-GOOGLE_API_KEY=your_google_api_key
+GEMINI_API_KEY=your_google_gemini_api_key
 GOOGLE_MODEL=gemini-pro
 GCS_BUCKET_NAME=your-gcs-bucket
-```
+   ```
 
 ## Usage
 
 1. Start the Flask application:
 ```bash
-python app.py
-```
+   python app.py
+   ```
 
 2. Open your web browser and navigate to `http://localhost:5000`
 
@@ -132,7 +132,7 @@ gcloud builds submit --config cloudbuild.yaml
 4. Set up environment variables in Cloud Run:
 ```bash
 gcloud run services update voice-app \
-  --update-env-vars MURFA_API_KEY=your_murf_api_key,GOOGLE_API_KEY=your_google_gemini_api_key,GOOGLE_MODEL=your_google_gemini_model_key
+  --update-env-vars MURFA_API_KEY=your_murf_api_key,GEMINI_API_KEY=your_google_gemini_api_key,GOOGLE_MODEL=your_google_gemini_model_key
 ```
 
 5. Monitor the deployment:
@@ -153,7 +153,7 @@ docker build -t voice-app .
 ```bash
 docker run -p 8080:8080 \
   -e MURFA_API_KEY=your_murf_api_key \
-  -e GOOGLE_API_KEY=your_google_api_key \
+  -e GEMINI_API_KEY=your_google_gemini_api_key \
   voice-app
 ```
 

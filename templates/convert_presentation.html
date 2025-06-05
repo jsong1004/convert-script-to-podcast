@@ -11,8 +11,12 @@
         <div class="card-body">
             <form method="POST" enctype="multipart/form-data">
                 <div class="mb-3">
-                    <label for="presentation_file" class="form-label">Upload Presentation File (.pptx, .pdf, .md, or .txt):</label>
-                    <input type="file" class="form-control" name="presentation_file" id="presentation_file" accept=".pptx,.pdf,.md,.txt,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/pdf,text/markdown,text/plain" required>
+                    <label for="presentation_file" class="form-label">Upload  File (.pptx, .pdf, .md, or .txt):</label>
+                    <input type="file" class="form-control" name="presentation_file" id="presentation_file" accept=".pptx,.pdf,.md,.txt,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/pdf,text/markdown,text/plain">
+                </div>
+                <div class="mb-3">
+                    <label for="presentation_text_input" class="form-label">Paste presentation text here (optional):</label>
+                    <textarea class="form-control" id="presentation_text_input" name="presentation_text_input" rows="6" placeholder="Paste your presentation text here...">{{ presentation_text_input or '' }}</textarea>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Select Script Style:</label>

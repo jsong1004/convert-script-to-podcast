@@ -7,10 +7,10 @@ from google.cloud import storage
 class BlogGenerator:
     def __init__(self, api_key: Optional[str] = None, model_name: Optional[str] = None):
         # Load from environment if not provided
-        self.api_key = api_key or os.getenv("GOOGLE_API_KEY")
+        self.api_key = api_key or os.getenv("GEMINI_API_KEY")
         self.model_name = model_name or os.getenv("GOOGLE_MODEL", "models/gemini-2.0-flash")
         if not self.api_key:
-            raise ValueError("Google API key not found. Set GOOGLE_API_KEY in your .env file.")
+            raise ValueError("Gemini API key not found. Set GEMINI_API_KEY in your .env file.")
         genai.configure(api_key=self.api_key)
         self.model = genai.GenerativeModel(self.model_name)
 
