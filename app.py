@@ -404,13 +404,23 @@ def idea_to_video():
     error = None
     if request.method == 'POST':
         user_input = request.form.get('user_input', '').strip()
+        app.logger.info(f"Received idea-to-video request with input: '{user_input}'")
         if not user_input:
             error = "Please enter your video idea or topic."
+            app.logger.warning("Empty user input received")
         else:
-            try:
-                clips = generate_video_storyboard(user_input)
-            except Exception as e:
-                error = str(e)
+            # Check API key availability
+            if not GEMINI_API_KEY:
+                error = "Gemini API Key is not configured. Please contact the administrator."
+                app.logger.error("GEMINI_API_KEY not available for video generation")
+            else:
+                try:
+                    app.logger.info("Generating video storyboard...")
+                    clips = generate_video_storyboard(user_input)
+                    app.logger.info(f"Successfully generated {len(clips) if clips else 0} clips")
+                except Exception as e:
+                    error = str(e)
+                    app.logger.error(f"Error generating video storyboard: {error}", exc_info=True)
     return render_template('idea_to_video.html', clips=clips, error=error)
 
 if __name__ == '__main__':

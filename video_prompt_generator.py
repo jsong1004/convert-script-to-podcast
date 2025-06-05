@@ -34,9 +34,8 @@ If no length is specified, default to 30 seconds.
 
 Output format:
 
-Video Instruction: Cinematic shot of a sunbeam filtering through the leaves of a lush, green coffee plant at sunrise.
-Voice Instruction: Keep it friendly and engaging. Keep it friendly and engaging. Keep it friendly and engaging.
-Voice: Wake up to a brighter morning. A morning filled with hope, and a better world.
+Video Prompt: Cinematic shot of a sunbeam filtering through the leaves of a lush, green coffee plant at sunrise.
+Voice Script: Wake up to a brighter morning. A morning filled with hope, and a better world.
 
 Do NOT include any introductory text, explanations, or extra lines. Do not say things like 'Here are four sets...' or anything else. Only output the {num_clips} sets, each with a Video Prompt and a Voice Script, separated by a blank line."""
 
@@ -44,9 +43,11 @@ Do NOT include any introductory text, explanations, or extra lines. Do not say t
 
     response = model.generate_content(prompt)
     content = response.text
-
-    regex = r"Video Prompt:\s*(.+?)\s*Voice Script:\s*(.+?)(?=Video Prompt:|$)"
-    matches = re.findall(regex, content, re.DOTALL)
+    
+    # More robust regex to handle variations in formatting
+    regex = r"Video Prompt:\s*(.+?)\s*Voice Script:\s*(.+?)(?=\n\s*Video Prompt:|$)"
+    matches = re.findall(regex, content, re.DOTALL | re.IGNORECASE)
+    
     clips = []
     for idx, (video_prompt, voice_script) in enumerate(matches, 1):
         audio_prompt = generate_audio_prompt(video_prompt)
@@ -56,6 +57,11 @@ Do NOT include any introductory text, explanations, or extra lines. Do not say t
             "voice_script": voice_script.strip(),
             "audio_prompt": audio_prompt,
         })
+    
+    # If no matches found, try to provide a fallback or better error message
+    if not clips:
+        raise Exception(f"Failed to parse Gemini response. Raw response: {content[:200]}...")
+    
     return clips
 
 def generate_audio_prompt(video_prompt):

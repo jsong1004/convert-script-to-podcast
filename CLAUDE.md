@@ -20,12 +20,19 @@ docker run -p 8080:8080 voice-app
 
 ### Dependencies
 ```bash
-# Install dependencies
+# Install Python dependencies
 pip install -r requirements.txt
 
-# Key system dependency (required for audio processing)
-# On Ubuntu/Debian: apt-get install ffmpeg
-# On macOS: brew install ffmpeg
+# Essential system dependencies (required for audio/video processing)
+# On Ubuntu/Debian:
+apt-get install ffmpeg
+
+# On macOS:
+brew install ffmpeg
+
+# For Google Cloud deployment, ensure you have:
+# - Google Cloud SDK installed and configured
+# - Service account with Storage permissions for file uploads
 ```
 
 ### Testing and Validation
@@ -107,3 +114,43 @@ app.register_blueprint(presentation_bp)
 - User-friendly error messages in templates
 - Graceful API failure handling with fallbacks
 - Temporary file cleanup on errors
+
+## Important Implementation Details
+
+### File Processing Patterns
+- All uploaded files are processed in temporary locations and cleaned up after use
+- Audio files are processed in chunks for large files to avoid memory issues
+- Generated files are immediately uploaded to GCS and local copies removed
+
+### API Integration Patterns
+- **Murf AI Error Handling**: Special handling for 502 errors (Bad Gateway) with user-friendly messages
+- **Gemini API**: Uses `gemini-2.0-flash` model by default, configurable via `GOOGLE_MODEL` env var
+- **Language Detection**: Automatic detection of Korean vs English text using character frequency analysis
+
+### Security Considerations
+- API keys loaded via environment variables only
+- Temporary files use UUID-based naming to prevent conflicts
+- GCS signed URLs provide time-limited access to generated files
+- File upload validation by content type and extension
+
+### Performance Optimizations
+- Audio segments processed and combined sequentially to manage memory usage
+- Chunked transcription for long audio/video files
+- Automatic cleanup of temporary files to prevent storage bloat
+
+## Common Issues and Solutions
+
+### Audio Generation Failures
+- Check Murf API key validity and account status
+- Verify voice IDs match available voices for selected language
+- Ensure script follows proper "SPEAKER: text" format
+
+### Transcription Issues
+- Verify ffmpeg is installed and accessible
+- Check audio file formats are supported (MP3, WAV, M4A, FLAC, OGG)
+- For long files, processing happens in chunks automatically
+
+### GCS Upload Failures
+- Ensure GCS_BUCKET_NAME environment variable is set
+- Verify Google Cloud authentication is configured
+- Check bucket permissions for the service account
