@@ -403,25 +403,75 @@ def idea_to_video():
     clips = None
     error = None
     if request.method == 'POST':
-        user_input = request.form.get('user_input', '').strip()
-        app.logger.info(f"Received idea-to-video request with input: '{user_input}'")
-        if not user_input:
-            error = "Please enter your video idea or topic."
-            app.logger.warning("Empty user input received")
+        # If editing storyboard
+        if request.form.get('edit_mode') == '1':
+            # Rebuild clips from form data
+            clips = []
+            idx = 0
+            while True:
+                video_prompt = request.form.get(f'video_prompt_{idx}')
+                voice_script = request.form.get(f'voice_script_{idx}')
+                audio_prompt = request.form.get(f'audio_prompt_{idx}')
+                if video_prompt is None:
+                    break
+                clips.append({
+                    'video_prompt': video_prompt,
+                    'voice_script': voice_script,
+                    'audio_prompt': audio_prompt
+                })
+                idx += 1
         else:
-            # Check API key availability
-            if not GEMINI_API_KEY:
-                error = "Gemini API Key is not configured. Please contact the administrator."
-                app.logger.error("GEMINI_API_KEY not available for video generation")
+            user_input = request.form.get('user_input', '').strip()
+            app.logger.info(f"Received idea-to-video request with input: '{user_input}'")
+            if not user_input:
+                error = "Please enter your video idea or topic."
+                app.logger.warning("Empty user input received")
             else:
-                try:
-                    app.logger.info("Generating video storyboard...")
-                    clips = generate_video_storyboard(user_input)
-                    app.logger.info(f"Successfully generated {len(clips) if clips else 0} clips")
-                except Exception as e:
-                    error = str(e)
-                    app.logger.error(f"Error generating video storyboard: {error}", exc_info=True)
+                # Check API key availability
+                if not GEMINI_API_KEY:
+                    error = "Gemini API Key is not configured. Please contact the administrator."
+                    app.logger.error("GEMINI_API_KEY not available for video generation")
+                else:
+                    try:
+                        app.logger.info("Generating video storyboard...")
+                        clips = generate_video_storyboard(user_input)
+                        app.logger.info(f"Successfully generated {len(clips) if clips else 0} clips")
+                    except Exception as e:
+                        error = str(e)
+                        app.logger.error(f"Error generating video storyboard: {error}", exc_info=True)
     return render_template('idea_to_video.html', clips=clips, error=error)
+
+@app.route('/download-storyboard', methods=['POST'])
+def download_storyboard():
+    # Rebuild clips from form data
+    clips = []
+    idx = 0
+    while True:
+        video_prompt = request.form.get(f'video_prompt_{idx}')
+        voice_script = request.form.get(f'voice_script_{idx}')
+        audio_prompt = request.form.get(f'audio_prompt_{idx}')
+        if video_prompt is None:
+            break
+        clips.append({
+            'video_prompt': video_prompt,
+            'voice_script': voice_script,
+            'audio_prompt': audio_prompt
+        })
+        idx += 1
+    # Format storyboard as text
+    output = []
+    for i, clip in enumerate(clips, 1):
+        output.append(f"Clip {i}\nVideo Prompt: {clip['video_prompt']}\nVoice Script: {clip['voice_script']}\nAudio Prompt: {clip['audio_prompt']}\n")
+    storyboard_text = '\n'.join(output)
+    # Send as downloadable file
+    from flask import Response
+    return Response(
+        storyboard_text,
+        mimetype='text/plain',
+        headers={
+            'Content-Disposition': 'attachment;filename=storyboard.txt'
+        }
+    )
 
 if __name__ == '__main__':
     # Basic logging configuration

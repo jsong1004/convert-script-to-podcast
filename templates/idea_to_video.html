@@ -2,7 +2,8 @@
 {% block content %}
 <div class="container mt-4">
   <h2>Idea to Video Prompt & Voiceover Script</h2>
-  <p>Enter your video idea or topic. The AI will generate a storyboard for a 30-second video (4 clips, each with a video prompt and a voiceover script).</p>
+  <p>Have a video idea? Tell us your topic, and we'll craft a storyboard for you. By default, storyboards are designed for a 30-second video. If you'd like a different duration (e.g., 15 seconds, one minute), just let us know in your request.</p>
+  <p>For example: 'Create a 60-second storyboard for a tutorial on sustainable gardening.'</p>
   <form method="post">
     <div class="mb-3">
       <label for="user_input" class="form-label">Your Video Idea/Topic</label>
@@ -16,20 +17,36 @@
   {% if clips %}
     <hr>
     <h4>Storyboard (4 Clips):</h4>
-    <div class="row">
-      {% for clip in clips %}
-        <div class="col-md-6 mb-4">
-          <div class="card h-100">
-            <div class="card-body">
-              <h5 class="card-title">Clip {{ loop.index }}</h5>
-              <p><strong>Video Prompt:</strong> {{ clip.video_prompt }}</p>
-              <p><strong>Voice Script:</strong> {{ clip.voice_script }}</p>
-              <p><strong>Audio Prompt:</strong> {{ clip.audio_prompt }}</p>
+    <form method="post" action="{{ url_for('idea_to_video') }}">
+      <input type="hidden" name="edit_mode" value="1">
+      <div class="row">
+        {% for clip in clips %}
+          <div class="col-md-6 mb-4">
+            <div class="card h-100">
+              <div class="card-body">
+                <h5 class="card-title">Clip {{ loop.index }}</h5>
+                <div class="mb-2">
+                  <label for="video_prompt_{{ loop.index0 }}"><strong>Video Prompt:</strong></label>
+                  <textarea class="form-control" name="video_prompt_{{ loop.index0 }}" id="video_prompt_{{ loop.index0 }}" rows="2">{{ clip.video_prompt }}</textarea>
+                </div>
+                <div class="mb-2">
+                  <label for="voice_script_{{ loop.index0 }}"><strong>Voice Script:</strong></label>
+                  <textarea class="form-control" name="voice_script_{{ loop.index0 }}" id="voice_script_{{ loop.index0 }}" rows="2">{{ clip.voice_script }}</textarea>
+                </div>
+                <div class="mb-2">
+                  <label for="audio_prompt_{{ loop.index0 }}"><strong>Audio Prompt:</strong></label>
+                  <textarea class="form-control" name="audio_prompt_{{ loop.index0 }}" id="audio_prompt_{{ loop.index0 }}" rows="2">{{ clip.audio_prompt }}</textarea>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      {% endfor %}
-    </div>
+        {% endfor %}
+      </div>
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-success">Save Edits</button>
+        <button type="submit" formaction="{{ url_for('download_storyboard') }}" formmethod="post" class="btn btn-secondary">Download Storyboard</button>
+      </div>
+    </form>
   {% endif %}
 </div>
 {% endblock %} 
